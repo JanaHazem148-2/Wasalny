@@ -1,0 +1,613 @@
+================================================================
+CSE112 - Smart City Transportation Network
+Complete Enhanced Project Data
+Alamein International University
+================================================================
+SOURCE LEGEND:
+  [ORIGINAL] = provided as-is from the project data sheet
+  [ADDED]    = added to support a specific algorithm requirement
+  [MODIFIED] = original data kept, with extra fields appended
+================================================================
+
+
+================================================================
+SECTION 1 — GEOGRAPHIC DATA [ORIGINAL]
+================================================================
+
+--------------------------------------------------------
+1A. Neighborhoods and Districts
+Format: ID, Name, Population, Type, Longitude, Latitude
+--------------------------------------------------------
+
+1,  Maadi,                       250000, Residential, 31.25, 29.96
+2,  Nasr City,                   500000, Mixed,        31.34, 30.06
+3,  Downtown Cairo,              100000, Business,     31.24, 30.04
+4,  New Cairo,                   300000, Residential,  31.47, 30.03
+5,  Heliopolis,                  200000, Mixed,         31.32, 30.09
+6,  Zamalek,                      50000, Residential,  31.22, 30.06
+7,  6th October City,            400000, Mixed,         30.98, 29.93
+8,  Giza,                        550000, Mixed,         31.21, 29.99
+9,  Mohandessin,                 180000, Business,     31.20, 30.05
+10, Dokki,                       220000, Mixed,         31.21, 30.03
+11, Shubra,                      450000, Residential,  31.24, 30.11
+12, Helwan,                      350000, Industrial,   31.33, 29.85
+13, New Administrative Capital,   50000, Government,   31.80, 30.02
+14, Al Rehab,                    120000, Residential,  31.49, 30.06
+15, Sheikh Zayed,                150000, Residential,  30.94, 30.01
+
+--------------------------------------------------------
+1B. Important Facilities
+Format: ID, Name, Type, Longitude, Latitude
+--------------------------------------------------------
+
+F1,  Cairo International Airport,  Airport,     31.41, 30.11
+F2,  Ramses Railway Station,        Transit Hub, 31.25, 30.06
+F3,  Cairo University,              Education,   31.21, 30.03
+F4,  Al-Azhar University,           Education,   31.26, 30.05
+F5,  Egyptian Museum,               Tourism,     31.23, 30.05
+F6,  Cairo International Stadium,   Sports,      31.30, 30.07
+F7,  Smart Village,                 Business,    30.97, 30.07
+F8,  Cairo Festival City,           Commercial,  31.40, 30.03
+F9,  Qasr El Aini Hospital,         Medical,     31.23, 30.03
+F10, Maadi Military Hospital,       Medical,     31.25, 29.95
+
+
+================================================================
+SECTION 2 — ROAD NETWORK DATA
+================================================================
+
+--------------------------------------------------------
+2A. Existing Roads [ORIGINAL]
+Format: FromID, ToID, Distance(km), Capacity(veh/h), Condition(1-10)
+NOTE: All roads are bidirectional.
+--------------------------------------------------------
+
+1,   3,   8.5,  3000, 7
+1,   8,   6.2,  2500, 6
+2,   3,   5.9,  2800, 8
+2,   5,   4.0,  3200, 9
+3,   5,   6.1,  3500, 7
+3,   6,   3.2,  2000, 8
+3,   9,   4.5,  2600, 6
+3,   10,  3.8,  2400, 7
+4,   2,   15.2, 3800, 9
+4,   14,  5.3,  3000, 10
+5,   11,  7.9,  3100, 7
+6,   9,   2.2,  1800, 8
+7,   8,   24.5, 3500, 8
+7,   15,  9.8,  3000, 9
+8,   10,  3.3,  2200, 7
+8,   12,  14.8, 2600, 5
+9,   10,  2.1,  1900, 7
+10,  11,  8.7,  2400, 6
+11,  F2,  3.6,  2200, 7
+12,  1,   12.7, 2800, 6
+13,  4,   45.0, 4000, 10
+14,  13,  35.5, 3800, 9
+15,  7,   9.8,  3000, 9
+F1,  5,   7.5,  3500, 9
+F1,  2,   9.2,  3200, 8
+F2,  3,   2.5,  2000, 7
+F7,  15,  8.3,  2800, 8
+F8,  4,   6.1,  3000, 9
+
+--------------------------------------------------------
+2B. Hospital Access Roads [ADDED]
+Reason: F9 and F10 had zero road connections in the original
+dataset, making A* emergency routing impossible. These roads
+are necessary for the Emergency Response subsystem.
+Format: FromID, ToID, Distance(km), Capacity(veh/h), Condition(1-10)
+--------------------------------------------------------
+
+F9,  3,   1.2, 1500, 9
+F9,  6,   2.1, 1200, 8
+F9,  10,  2.5, 1300, 8
+F10, 1,   1.8, 1400, 9
+F10, 12,  3.2, 1200, 7
+F10, 8,   5.1, 1500, 8
+
+--------------------------------------------------------
+2C. Potential New Roads [ORIGINAL]
+Format: FromID, ToID, Distance(km), Capacity(veh/h), Cost(Million EGP)
+Used by: MST algorithm (Kruskal's) to evaluate cost-efficient expansions
+--------------------------------------------------------
+
+1,   4,   22.8, 4000, 450
+1,   14,  25.3, 3800, 500
+2,   13,  48.2, 4500, 950
+3,   13,  56.7, 4500, 1100
+5,   4,   16.8, 3500, 320
+6,   8,   7.5,  2500, 150
+7,   13,  82.3, 4000, 1600
+9,   11,  6.9,  2800, 140
+10,  F7,  27.4, 3200, 550
+11,  13,  62.1, 4200, 1250
+12,  14,  30.5, 3600, 610
+14,  5,   18.2, 3300, 360
+15,  9,   22.7, 3000, 450
+F1,  13,  40.2, 4000, 800
+F7,  9,   26.8, 3200, 540
+
+
+================================================================
+SECTION 3 — TRAFFIC FLOW DATA [ORIGINAL]
+================================================================
+
+--------------------------------------------------------
+3A. Traffic Flow Patterns
+Format: RoadID, MorningPeak(veh/h), Afternoon(veh/h), EveningPeak(veh/h), Night(veh/h)
+Time windows: Morning=07:00-09:00, Afternoon=09:00-16:00, Evening=16:00-19:00, Night=19:00-07:00
+Used by: Dijkstra (congestion factor), Greedy (signal allocation)
+--------------------------------------------------------
+
+1-3,    2800, 1500, 2600,  800
+1-8,    2200, 1200, 2100,  600
+2-3,    2700, 1400, 2500,  700
+2-5,    3000, 1600, 2800,  650
+3-5,    3200, 1700, 3100,  800
+3-6,    1800, 1400, 1900,  500
+3-9,    2400, 1300, 2200,  550
+3-10,   2300, 1200, 2100,  500
+4-2,    3600, 1800, 3300,  750
+4-14,   2800, 1600, 2600,  600
+5-11,   2900, 1500, 2700,  650
+6-9,    1700, 1300, 1800,  450
+7-8,    3200, 1700, 3000,  700
+7-15,   2800, 1500, 2600,  600
+8-10,   2000, 1100, 1900,  450
+8-12,   2400, 1300, 2200,  500
+9-10,   1800, 1200, 1700,  400
+10-11,  2200, 1300, 2100,  500
+11-F2,  2100, 1200, 2000,  450
+12-1,   2600, 1400, 2400,  550
+13-4,   3800, 2000, 3500,  800
+14-13,  3600, 1900, 3300,  750
+15-7,   2800, 1500, 2600,  600
+F1-5,   3300, 2200, 3100, 1200
+F1-2,   3000, 2000, 2800, 1100
+F2-3,   1900, 1600, 1800,  900
+F7-15,  2600, 1500, 2400,  550
+F8-4,   2800, 1600, 2600,  600
+
+--------------------------------------------------------
+3B. Hospital Road Traffic Flow [ADDED]
+Reason: Required to compute congestion weights on hospital access roads.
+Format: RoadID, MorningPeak, Afternoon, EveningPeak, Night
+--------------------------------------------------------
+
+F9-3,    800,  600,  750, 200
+F9-6,    600,  450,  580, 150
+F9-10,   700,  500,  650, 180
+F10-1,   700,  520,  670, 190
+F10-12,  550,  400,  520, 140
+F10-8,   750,  550,  700, 200
+
+--------------------------------------------------------
+3C. Congestion Weight Formula [ADDED]
+Reason: Dijkstra and A* need a consistent formula to convert
+flow/capacity ratios into travel time multipliers.
+
+  travel_time(minutes) = (distance / speed) * 60 * congestion_factor
+
+  congestion_ratio = flow / capacity
+  if ratio >= 0.90 -> congestion_factor = 3.0  (severe)
+  if ratio >= 0.75 -> congestion_factor = 1.8  (moderate)
+  if ratio <  0.75 -> congestion_factor = 1.0  (clear)
+--------------------------------------------------------
+
+
+================================================================
+SECTION 4 — SPEED LIMITS [ADDED]
+Reason: Original data provides distances only. Travel time
+computation for Dijkstra and A* requires speed per road type.
+Format: FromID, ToID, NormalSpeed(km/h), RushHourSpeed(km/h)
+================================================================
+
+1,   3,   60,  30
+1,   8,   70,  35
+2,   3,   60,  25
+2,   5,   80,  40
+3,   5,   60,  25
+3,   6,   50,  20
+3,   9,   60,  25
+3,   10,  60,  25
+4,   2,   100, 60
+4,   14,  90,  55
+5,   11,  70,  35
+6,   9,   50,  20
+7,   8,   100, 60
+7,   15,  90,  55
+8,   10,  60,  30
+8,   12,  80,  45
+9,   10,  50,  20
+10,  11,  60,  30
+11,  F2,  60,  30
+12,  1,   80,  45
+13,  4,   120, 80
+14,  13,  110, 75
+15,  7,   90,  55
+F1,  5,   90,  55
+F1,  2,   90,  55
+F2,  3,   50,  20
+F7,  15,  80,  50
+F8,  4,   90,  55
+F9,  3,   50,  30
+F9,  6,   50,  30
+F9,  10,  50,  30
+F10, 1,   60,  35
+F10, 12,  60,  35
+F10, 8,   70,  40
+
+
+================================================================
+SECTION 5 — ROAD MAINTENANCE DATA [ADDED]
+Reason: DP resource allocation requires cost and priority per road.
+The project requires selecting which roads to maintain given
+a fixed annual budget (Knapsack formulation).
+
+Format: FromID, ToID, Condition(1-10), MaintenanceCost(Million EGP), Priority(1-5)
+Priority scale: 5 = highest (critical facility access or severe condition)
+                1 = lowest  (minor residential road, good condition)
+Annual Budget: 200 Million EGP
+================================================================
+
+1,   3,   7,  12.5, 3
+1,   8,   6,  18.0, 3
+2,   3,   8,   8.5, 3
+2,   5,   9,   6.0, 2
+3,   5,   7,   9.0, 4
+3,   6,   8,   5.0, 2
+3,   9,   6,  14.0, 4
+3,   10,  7,  10.5, 3
+4,   2,   9,  20.0, 3
+4,   14,  10,  4.0, 2
+5,   11,  7,  11.0, 3
+6,   9,   8,   4.0, 2
+7,   8,   8,  30.0, 4
+7,   15,  9,  12.0, 3
+8,   10,  7,   6.0, 3
+8,   12,  5,  35.0, 5
+9,   10,  7,   4.0, 2
+10,  11,  6,  18.0, 3
+11,  F2,  7,   7.0, 3
+12,  1,   6,  22.0, 4
+13,  4,   10, 50.0, 4
+14,  13,  9,  40.0, 3
+15,  7,   9,  12.0, 3
+F1,  5,   9,   9.0, 4
+F1,  2,   8,  11.0, 4
+F2,  3,   7,   4.0, 5
+F7,  15,  8,  10.0, 3
+F8,  4,   9,   7.0, 3
+F9,  3,   9,   2.0, 5
+F9,  6,   8,   3.5, 5
+F9,  10,  8,   4.0, 5
+F10, 1,   9,   2.5, 5
+F10, 12,  7,   5.0, 5
+F10, 8,   8,   7.0, 5
+
+ANNUAL_MAINTENANCE_BUDGET = 200
+
+
+================================================================
+SECTION 6 — TRAFFIC SIGNAL DATA [ADDED]
+Reason: Greedy algorithm requires intersection-level data to
+optimize signal timing and handle emergency vehicle preemption.
+================================================================
+
+--------------------------------------------------------
+6A. Major Intersections
+Format: IntersectionID, Name, ConnectedRoads, NormalCycleTime(sec)
+--------------------------------------------------------
+
+I1,  Tahrir Square,          "1-3, 2-3, 3-6, 3-9, 3-10",  120
+I2,  Nasr City Junction,     "2-3, 2-5, 4-2",              100
+I3,  Giza Square,            "1-8, 7-8, 8-10, 8-12",       110
+I4,  Mohandessin Center,     "3-9, 6-9, 9-10",              90
+I5,  Dokki Junction,         "3-10, 8-10, 9-10, 10-11",    100
+I6,  Heliopolis Hub,         "2-5, 3-5, 5-11, F1-5",       110
+I7,  Ramses Junction,        "10-11, 11-F2, F2-3",         100
+I8,  October-Giza Ring,      "7-8, 7-15, 15-7",            120
+I9,  New Cairo Gate,         "4-2, 4-14, F8-4",            100
+I10, Airport Junction,       "F1-5, F1-2",                  90
+
+--------------------------------------------------------
+6B. Signal Timing per Period
+Format: IntersectionID, MorningGreen(sec), AfternoonGreen(sec), EveningGreen(sec), NightGreen(sec)
+Greedy will use flow data to reallocate green time per phase.
+--------------------------------------------------------
+
+I1,  90, 45, 85, 30
+I2,  80, 40, 75, 25
+I3,  85, 42, 80, 28
+I4,  70, 35, 65, 20
+I5,  75, 38, 70, 22
+I6,  80, 40, 78, 25
+I7,  75, 38, 72, 22
+I8,  85, 42, 80, 28
+I9,  80, 40, 75, 25
+I10, 70, 45, 68, 30
+
+--------------------------------------------------------
+6C. Emergency Preemption Configuration [ADDED]
+Reason: Greedy algorithm must give emergency vehicles priority
+at intersections by temporarily overriding the signal cycle.
+Format: IntersectionID, PreemptionHoldTime(sec), RecoveryCycleTime(sec)
+--------------------------------------------------------
+
+I1,  15, 45
+I2,  12, 40
+I3,  13, 42
+I4,  10, 35
+I5,  11, 38
+I6,  12, 40
+I7,  11, 38
+I8,  13, 42
+I9,  12, 40
+I10, 10, 35
+
+--------------------------------------------------------
+6D. Greedy Signal Optimization Rules [ADDED]
+Applied per intersection per time period.
+
+  green_time(road_i) = (flow_i / total_flow_at_intersection) * cycle_time
+
+  Emergency override:
+    if emergency_vehicle_detected = True:
+      set green_time = PreemptionHoldTime for approaching road
+      set red_time   = PreemptionHoldTime for all other roads
+      resume normal cycle after RecoveryCycleTime seconds
+
+  Greedy is optimal when:
+    - Flows are stable and predictable (normal daily patterns)
+    - Only one intersection is being optimized at a time
+
+  Greedy is suboptimal when:
+    - Multiple adjacent intersections interact (requires global coordination)
+    - Unexpected events occur (accidents, protests) not reflected in flow data
+--------------------------------------------------------
+
+
+================================================================
+SECTION 7 — PUBLIC TRANSPORTATION DATA [ORIGINAL]
+================================================================
+
+--------------------------------------------------------
+7A. Metro Lines
+Format: LineID, Name, Stations(IDs), DailyPassengers
+--------------------------------------------------------
+
+M1, Line 1 (Helwan - New Marg),   "12,1,3,F2,11",  1500000
+M2, Line 2 (Shubra - Giza),       "11,F2,3,10,8",  1200000
+M3, Line 3 (Airport - Imbaba),    "F1,5,2,3,9",     800000
+
+--------------------------------------------------------
+7B. Bus Routes
+Format: RouteID, Stops(IDs), BusesAssigned, DailyPassengers
+--------------------------------------------------------
+
+B1,  "1,3,6,9",       25, 35000
+B2,  "7,15,8,10,3",   30, 42000
+B3,  "2,5,F1",        20, 28000
+B4,  "4,14,2,3",      22, 31000
+B5,  "8,12,1",        18, 25000
+B6,  "11,5,2",        24, 33000
+B7,  "13,4,14",       15, 21000
+B8,  "F7,15,7",       12, 17000
+B9,  "1,8,10,9,6",    28, 39000
+B10, "F8,4,2,5",      20, 28000
+
+--------------------------------------------------------
+7C. Public Transportation Demand
+Format: FromID, ToID, DailyPassengers
+Used by: DP scheduling to match supply to demand
+--------------------------------------------------------
+
+3,   5,   15000
+1,   3,   12000
+2,   3,   18000
+F2,  11,  25000
+F1,  3,   20000
+7,   3,   14000
+4,   3,   16000
+8,   3,   22000
+3,   9,   13000
+5,   2,   17000
+11,  3,   24000
+12,  3,   11000
+1,   8,   9000
+7,   F7,  18000
+4,   F8,  12000
+13,  3,   8000
+14,  4,   7000
+
+
+================================================================
+SECTION 8 — TRANSPORTATION SCHEDULES [ADDED]
+Reason: DP scheduling requires time-based supply data.
+The original dataset provides daily totals only, with no
+schedule structure for the DP table to operate on.
+================================================================
+
+--------------------------------------------------------
+8A. Metro Schedules
+Format: LineID, FirstDeparture, LastDeparture, PeakFrequency(min), OffPeakFrequency(min), TrainCapacity(passengers)
+--------------------------------------------------------
+
+M1, 05:00, 00:00, 3,  6,  1200
+M2, 05:00, 00:00, 3,  6,  1200
+M3, 05:00, 00:00, 4,  8,  1000
+
+--------------------------------------------------------
+8B. Bus Schedules
+Format: RouteID, FirstBus, LastBus, PeakFrequency(min), OffPeakFrequency(min), BusCapacity(passengers)
+--------------------------------------------------------
+
+B1,  06:00, 23:00, 10, 20, 80
+B2,  06:00, 23:00,  8, 15, 80
+B3,  06:00, 23:00, 12, 25, 80
+B4,  06:00, 23:00, 10, 20, 80
+B5,  06:00, 22:00, 15, 30, 80
+B6,  06:00, 23:00, 10, 20, 80
+B7,  07:00, 22:00, 20, 40, 80
+B8,  07:00, 22:00, 25, 45, 80
+B9,  06:00, 23:00, 10, 20, 80
+B10, 06:00, 23:00, 12, 25, 80
+
+--------------------------------------------------------
+8C. Fleet Availability per Time Slot [ADDED]
+Reason: DP must know the total available vehicles per period
+to enforce the resource constraint in the scheduling problem.
+Format: TimePeriod, AvailableBuses, AvailableMetroTrains
+--------------------------------------------------------
+
+MorningPeak  (06:00 - 09:00),  180, 24
+Afternoon    (09:00 - 16:00),  140, 18
+EveningPeak  (16:00 - 20:00),  175, 22
+Night        (20:00 - 06:00),  100, 12
+
+
+================================================================
+SECTION 9 — SCENARIO DEFINITIONS [ADDED]
+Reason: The project requires demonstrating performance under
+different scenarios. These are predefined test cases that
+cover all required algorithm behaviors.
+================================================================
+
+--------------------------------------------------------
+SCENARIO A — Standard Route Planning (Dijkstra)
+Tests time-dependent weight changes across all four periods.
+--------------------------------------------------------
+
+Query 1:  From=4  (New Cairo)         To=3  (Downtown Cairo)   Period=MorningPeak
+Query 2:  From=4  (New Cairo)         To=3  (Downtown Cairo)   Period=Night
+Query 3:  From=7  (6th October City)  To=2  (Nasr City)        Period=EveningPeak
+Query 4:  From=12 (Helwan)            To=13 (New Admin Capital) Period=Afternoon
+Query 5:  From=11 (Shubra)            To=15 (Sheikh Zayed)     Period=MorningPeak
+
+Expected behavior: Travel times in MorningPeak and EveningPeak
+should be significantly higher than Afternoon and Night on
+congested roads (congestion ratio >= 0.75).
+
+--------------------------------------------------------
+SCENARIO B — Emergency Vehicle Routing (A*)
+Tests hospital reachability and response time from each district.
+--------------------------------------------------------
+
+Query 1:  From=7   (6th October City)  To=F9  (Qasr El Aini Hospital)
+Query 2:  From=13  (New Admin Capital) To=F9  (Qasr El Aini Hospital)
+Query 3:  From=12  (Helwan)            To=F10 (Maadi Military Hospital)
+Query 4:  From=4   (New Cairo)         To=F9  (Qasr El Aini Hospital)
+Query 5:  From=7   (6th October City)  To=F10 (Maadi Military Hospital)
+
+All queries run at Period=MorningPeak (worst-case response time).
+Compare A* result with Dijkstra result to demonstrate speed advantage.
+
+--------------------------------------------------------
+SCENARIO C — Road Closure / Alternate Route (Dijkstra)
+Tests system behavior when a major road is blocked.
+--------------------------------------------------------
+
+Block road: 3-5 (Downtown to Heliopolis) — simulates accident
+Query: From=2 (Nasr City) To=8 (Giza), Period=MorningPeak
+Expected: System must reroute through alternate nodes.
+Compare travel time before and after closure.
+
+Block road: 13-4 (New Admin Capital to New Cairo) — simulates closure
+Query: From=13 To=3 (Downtown Cairo), Period=Afternoon
+
+--------------------------------------------------------
+SCENARIO D — MST Infrastructure Design
+Tests Kruskal's with and without potential new roads.
+--------------------------------------------------------
+
+Run 1: MST using existing roads only
+Run 2: MST using existing + potential new roads
+Compare: Total distance, construction cost, critical nodes covered.
+
+Constraint check: Verify F9, F10, F1, F2, and node 13 are
+all included in the final spanning tree.
+
+--------------------------------------------------------
+SCENARIO E — Traffic Signal Optimization (Greedy)
+Tests signal timing allocation at peak vs. off-peak hours.
+--------------------------------------------------------
+
+Intersection: I1 (Tahrir Square) — highest traffic volume
+Period 1: MorningPeak — allocate green time by flow proportion
+Period 2: Night       — reallocate green time by night flow
+
+Emergency test: Trigger preemption at I1 during MorningPeak.
+Show: time saved, recovery cycle, impact on other roads.
+
+Suboptimal case: I1 and I4 adjacent — Greedy optimizes each
+independently but produces suboptimal combined throughput.
+Compare against brute-force optimal to quantify the gap.
+
+--------------------------------------------------------
+SCENARIO F — DP Scheduling
+Tests bus allocation across time slots.
+--------------------------------------------------------
+
+Input:  Fleet availability per slot (Section 8C)
+        Demand per OD pair (Section 7C)
+        Route coverage (Section 7B)
+
+Objective: Maximize total passengers served per day
+Constraint: Total buses deployed per slot <= available fleet
+
+Show DP table construction and optimal allocation decision.
+Compare optimized schedule against current assignment.
+
+--------------------------------------------------------
+SCENARIO G — DP Maintenance (Knapsack)
+Tests road prioritization under budget constraint.
+--------------------------------------------------------
+
+Budget: 200 Million EGP (Section 5)
+Input:  All 34 existing roads with cost and priority (Section 5)
+
+Objective: Maximize total priority score of maintained roads
+Constraint: Total cost <= 200 Million EGP
+
+Critical constraint: Roads with priority=5 (hospital access,
+Ramses Station) must be included regardless of cost.
+
+Show selected roads, total cost, total priority score, and
+which high-priority roads were excluded due to budget limits.
+
+
+================================================================
+SECTION 10 — ALGORITHM PARAMETERS [ADDED]
+Formal parameters used across all algorithm implementations.
+================================================================
+
+# A* Heuristic
+HEURISTIC_TYPE          = euclidean_distance
+COORDINATE_SCALE_FACTOR = 111.0   # km per degree (approximate)
+
+# Dijkstra
+DEFAULT_TIME_PERIOD     = Afternoon
+
+# MST
+CRITICAL_NODE_IDS       = F9, F10, F1, F2, 13
+PRIORITY_PHASE_ENABLED  = True
+
+# Greedy Signal
+CYCLE_TIME_UNIT         = seconds
+MIN_GREEN_TIME          = 10      # seconds, no phase gets less than this
+MAX_GREEN_TIME          = 120     # seconds
+
+# DP Scheduling
+SCHEDULING_SLOTS        = MorningPeak, Afternoon, EveningPeak, Night
+OBJECTIVE               = maximize_passengers_served
+
+# DP Maintenance
+ANNUAL_BUDGET           = 200     # Million EGP
+MANDATORY_ROADS         = F9-3, F9-6, F9-10, F10-1, F10-12, F10-8, F2-3
+OBJECTIVE               = maximize_priority_score
+
+
+================================================================
+END OF DATA FILE
+================================================================
