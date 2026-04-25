@@ -18,8 +18,7 @@ Design decisions:
   — Separation of concerns: Node and Edge carry their own logic. Graph
     only manages the adjacency structure and the data-loading pipeline.
 
-Author : CSE112 Project Team
-Course : Design and Analysis of Algorithms — AIU
+
 """
 
 from typing import Dict, List, Optional, Tuple
