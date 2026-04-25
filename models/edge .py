@@ -15,7 +15,7 @@ The congestion model used here mirrors the BPR (Bureau of Public Roads)
 function commonly used in transportation engineering, simplified to
 three discrete congestion tiers for clarity and efficiency.
 
-Author : Cairo Transport System — CSE112
+
 """
 
 from enum import Enum
