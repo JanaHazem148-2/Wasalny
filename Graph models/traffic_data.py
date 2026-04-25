@@ -24,15 +24,13 @@ The store is a two-level lookup table:
 
     _schedule_table: nested dict for bus/metro scheduling data (DP).
 
-Why a separate store rather than edge attributes?
 -------------------------------------------------
 Keeping temporal data in the store and static geometry in Edge keeps
 responsibilities separate. Algorithms can be given just the store (or
 a modified version of it) without touching the graph structure at all.
 This enables clean simulation: swap the store, same graph.
 
-Author : CSE112 Project Team
-Course : Design and Analysis of Algorithms — AIU
+
 """
 
 from __future__ import annotations
