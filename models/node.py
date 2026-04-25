@@ -1,158 +1,156 @@
 """
-node.py
--------
-Defines the Node class used to represent any physical location
-in the Greater Cairo transportation network  whether that is a
-residential district, a hospital, an airport, or a metro station.
+models/node.py
+Cairo Transportation Network — Node Model
 
-Each node carries geographic coordinates (real GPS data), a
-population count, and a type classification that drives
-priority decisions in the MST and emergency routing algorithms.
+Represents a single location in the Greater Cairo network.
+A node can be a residential district, a business hub, or a
+critical facility (hospital, airport, transit hub).
+
 
 
 """
 
-import math
-from enum import Enum
+from enum import Enum, auto
 
 
 # ---------------------------------------------------------------------------
-# NodeType Enum
+# Node type classification
 # ---------------------------------------------------------------------------
 
 class NodeType(Enum):
     """
-    Classifies every node in the network by its real-world function.
-
-    This classification is not cosmetic — it directly controls algorithm
-    behavior. Medical and critical types receive priority treatment in
-    Kruskal's MST (guaranteed connectivity) and A* (preferred destinations
-    in emergency routing).
+    Categorical label for every node in the network.
+    Used by MST to identify which nodes need priority connectivity,
+    and by A* to locate the nearest medical facility.
     """
-    RESIDENTIAL = "Residential"    # Purely residential district
-    BUSINESS    = "Business"       # Commercial or business-dominated area
-    MIXED       = "Mixed"          # Residential + commercial mix
-    INDUSTRIAL  = "Industrial"     # Industrial or manufacturing zone
-    GOVERNMENT  = "Government"     # Administrative / government center
-    MEDICAL     = "Medical"        # Hospital or healthcare facility  ← A* priority
-    AIRPORT     = "Airport"        # International or domestic airport
-    TRANSIT_HUB = "Transit Hub"    # Major railway or bus terminus
-    EDUCATION   = "Education"      # University or academic institution
-    TOURISM     = "Tourism"        # Museum, landmark, or tourist site
-    SPORTS      = "Sports"         # Stadium or sports complex
-    COMMERCIAL  = "Commercial"     # Shopping center or commercial hub
+    RESIDENTIAL  = auto()
+    MIXED        = auto()
+    BUSINESS     = auto()
+    INDUSTRIAL   = auto()
+    GOVERNMENT   = auto()
+    MEDICAL      = auto()   # F9, F10  — must be reachable from every district
+    AIRPORT      = auto()   # F1       — critical hub
+    TRANSIT_HUB  = auto()   # F2       — critical hub
+    EDUCATION    = auto()
+    TOURISM      = auto()
+    SPORTS       = auto()
+    COMMERCIAL   = auto()
 
-    def is_critical(self) -> bool:
-        """
-        Returns True if this type qualifies as a critical infrastructure
-        node — meaning it must be connected first during MST construction
-        and reachable at all times for emergency services.
-        """
-        return self in {
-            NodeType.MEDICAL,
-            NodeType.AIRPORT,
-            NodeType.TRANSIT_HUB,
-            NodeType.GOVERNMENT,
+    @classmethod
+    def from_string(cls, label: str) -> "NodeType":
+        """Parse the raw string from the dataset into an enum value."""
+        mapping = {
+            "residential": cls.RESIDENTIAL,
+            "mixed":       cls.MIXED,
+            "business":    cls.BUSINESS,
+            "industrial":  cls.INDUSTRIAL,
+            "government":  cls.GOVERNMENT,
+            "medical":     cls.MEDICAL,
+            "airport":     cls.AIRPORT,
+            "transit hub": cls.TRANSIT_HUB,
+            "education":   cls.EDUCATION,
+            "tourism":     cls.TOURISM,
+            "sports":      cls.SPORTS,
+            "commercial":  cls.COMMERCIAL,
         }
+        key = label.strip().lower()
+        if key not in mapping:
+            raise ValueError(f"Unrecognised node type: '{label}'")
+        return mapping[key]
 
 
 # ---------------------------------------------------------------------------
-# Node Class
+# The node itself
 # ---------------------------------------------------------------------------
 
 class Node:
     """
-    Represents a single location in Cairo's transportation network.
+    A vertex in the Cairo transportation graph.
 
     Attributes
     ----------
-    node_id    : Unique string identifier  (e.g. "3", "F9", "F1")
-    name       : Human-readable place name (e.g. "Downtown Cairo")
-    population : Resident or user count — 0 for non-residential facilities
-    node_type  : NodeType enum value
-    x          : Longitude coordinate (used for A* heuristic distance)
-    y          : Latitude  coordinate (used for A* heuristic distance)
+    node_id    : str   — unique identifier (e.g. '1', 'F9', 'F1')
+    name       : str   — human-readable name
+    node_type  : NodeType
+    longitude  : float — WGS-84 longitude (used for A* heuristic)
+    latitude   : float — WGS-84 latitude  (used for A* heuristic)
+    population : int   — resident population (0 for non-residential nodes)
+    is_critical: bool  — True if the node is a hospital, airport, or transit hub
     """
+
+    # Nodes that must always be reachable — enforced by MST's priority phase
+    _CRITICAL_IDS = frozenset({"F9", "F10", "F1", "F2", "13"})
 
     def __init__(
         self,
-        node_id    : str,
-        name       : str,
-        population : int,
-        node_type  : NodeType,
-        x          : float,
-        y          : float,
+        node_id:   str,
+        name:      str,
+        node_type: NodeType,
+        longitude: float,
+        latitude:  float,
+        population: int = 0,
     ):
-        self.id         = node_id
-        self.name       = name
+        self.node_id    = node_id.strip()
+        self.name       = name.strip()
+        self.node_type  = node_type
+        self.longitude  = longitude
+        self.latitude   = latitude
         self.population = population
-        self.type       = node_type
-        self.x          = x
-        self.y          = y
+
+        # A node is critical if it appears in the hard-coded set OR
+        # if it is typed as a medical facility or major transit node.
+        self.is_critical: bool = (
+            self.node_id in self._CRITICAL_IDS
+            or self.node_type in (NodeType.MEDICAL, NodeType.AIRPORT, NodeType.TRANSIT_HUB)
+        )
 
     # ------------------------------------------------------------------
-    # Geographic Calculations
+    # Geometry helpers — used by the A* heuristic in shortest_path.py
     # ------------------------------------------------------------------
 
-    def haversine_distance(self, other: "Node") -> float:
+    def euclidean_distance_to(self, other: "Node") -> float:
         """
-        Computes the straight-line (aerial) distance between this node
-        and another in kilometers using the Haversine formula.
+        Return the straight-line (aerial) distance to another node in km.
 
-        This is the heuristic function h(n) used by the A* algorithm.
-        It is admissible by definition — aerial distance never exceeds
-        actual road distance — which guarantees A* returns an optimal path.
+        Uses a flat-earth approximation scaled by 111 km/degree.
+        This is admissible as a heuristic: road distance is always >= aerial distance.
 
         Parameters
         ----------
-        other : The destination Node
+        other : Node — the destination node
 
         Returns
         -------
-        float : Aerial distance in kilometers
+        float — aerial distance in kilometres
         """
-        R  = 6371.0  # Earth's mean radius in km
-
-        lat1 = math.radians(self.y)
-        lat2 = math.radians(other.y)
-        dlat = math.radians(other.y - self.y)
-        dlon = math.radians(other.x - self.x)
-
-        a = (math.sin(dlat / 2) ** 2
-             + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2)
-
-        return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        SCALE = 111.0  # km per degree (approximate for Cairo's latitude)
+        delta_lon = (self.longitude - other.longitude) * SCALE
+        delta_lat = (self.latitude  - other.latitude)  * SCALE
+        return (delta_lon ** 2 + delta_lat ** 2) ** 0.5
 
     # ------------------------------------------------------------------
-    # Classification Helpers
-    # ------------------------------------------------------------------
-
-    def is_medical(self) -> bool:
-        """True if this node is a hospital or healthcare facility."""
-        return self.type == NodeType.MEDICAL
-
-    def is_critical(self) -> bool:
-        """
-        True if this node is classified as critical infrastructure.
-        Critical nodes receive guaranteed connectivity in the MST phase
-        and are preferred endpoints in emergency routing queries.
-        """
-        return self.type.is_critical()
-
-    def is_residential(self) -> bool:
-        """True if this node primarily serves a residential population."""
-        return self.type in {NodeType.RESIDENTIAL, NodeType.MIXED}
-
-    # ------------------------------------------------------------------
-    # Display
+    # Dunder methods — useful for debugging and set operations
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
-        pop = f", pop={self.population:,}" if self.population > 0 else ""
-        return f"Node({self.id} | {self.name} | {self.type.value}{pop})"
+        critical_flag = " [CRITICAL]" if self.is_critical else ""
+        return (
+            f"Node({self.node_id!r}, {self.name!r}, "
+            f"{self.node_type.name}{critical_flag})"
+        )
 
-    def __eq__(self, other) -> bool:
-        return isinstance(other, Node) and self.id == other.id
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Node):
+            return NotImplemented
+        return self.node_id == other.node_id
 
     def __hash__(self) -> int:
-        return hash(self.id)
+        return hash(self.node_id)
+
+    def __lt__(self, other: "Node") -> bool:
+        """
+        Tie-breaking comparator for priority queues.
+        When two nodes have identical f-scores in A*, Python needs a
+        way to break the tie without comparing full Node objects.
+        """
+        return self.node_id < other.node_id
