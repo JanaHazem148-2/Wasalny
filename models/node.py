@@ -2,14 +2,14 @@
 node.py
 -------
 Defines the Node class used to represent any physical location
-in the Greater Cairo transportation network — whether that is a
+in the Greater Cairo transportation network  whether that is a
 residential district, a hospital, an airport, or a metro station.
 
 Each node carries geographic coordinates (real GPS data), a
 population count, and a type classification that drives
 priority decisions in the MST and emergency routing algorithms.
 
-Author : Cairo Transport System — CSE112
+
 """
 
 import math
