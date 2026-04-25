@@ -10,8 +10,6 @@ Covers all three deliverables of Task 1:
 Run:
     python main.py
 
-Author : CSE112 Project Team
-Course : Design and Analysis of Algorithms -- AIU
 """
 
 from models.graph            import Graph
