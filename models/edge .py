@@ -1,267 +1,274 @@
 """
-edge.py
--------
-Defines the Edge class, which represents a road segment connecting
-two nodes in Cairo's transportation network.
+models/edge.py
+Cairo Transportation Network — Edge Model
 
-The most important responsibility of this class is time-dependent
-weight computation. An edge does not have a single fixed cost —
-its effective travel time changes across four daily periods based
-on measured traffic flow and road capacity. This is what allows
-Dijkstra and A* to model real Cairo traffic rather than assuming
-a static road network.
+Represents a bidirectional road segment between two nodes.
+Edges carry multiple data layers:
+  — static geometry   (distance, capacity, condition)
+  — time-varying flow (traffic volume per time period)
+  — speed limits      (normal + rush-hour, used for travel-time computation)
+  — maintenance data  (cost + priority, used by DP Knapsack)
+  — a potential-road flag for MST cost analysis
 
-The congestion model used here mirrors the BPR (Bureau of Public Roads)
-function commonly used in transportation engineering, simplified to
-three discrete congestion tiers for clarity and efficiency.
+All travel-time computation lives here so every algorithm that
+needs a weight simply calls edge.get_weight(period) and gets back
+minutes — no unit conversion scattered across the codebase.
 
 
 """
 
 from enum import Enum
+from typing import Optional
 
 
 # ---------------------------------------------------------------------------
-# TimePeriod Enum
+# Time-period enumeration
 # ---------------------------------------------------------------------------
 
 class TimePeriod(Enum):
     """
-    Represents the four daily traffic periods defined in the dataset.
+    The four daily traffic windows defined in the dataset.
 
-    Each period carries distinct flow patterns across the road network,
-    which directly affects edge weights in Dijkstra and A*.
-
-    Time windows (24-hour):
-        MORNING_PEAK  07:00 – 09:00   (rush hour inbound)
-        AFTERNOON     09:00 – 16:00   (normal flow)
-        EVENING_PEAK  16:00 – 19:00   (rush hour outbound)
-        NIGHT         19:00 – 07:00   (light traffic)
+    Each period maps to a different traffic-flow column and, consequently,
+    to a different congestion factor and travel time.
     """
-    MORNING_PEAK = "Morning Peak"
-    AFTERNOON    = "Afternoon"
-    EVENING_PEAK = "Evening Peak"
-    NIGHT        = "Night"
+    MORNING_PEAK  = "morning"    # 07:00 – 09:00  heavy congestion
+    AFTERNOON     = "afternoon"  # 09:00 – 16:00  normal flow
+    EVENING_PEAK  = "evening"    # 16:00 – 19:00  heavy congestion
+    NIGHT         = "night"      # 19:00 – 07:00  light traffic
 
-    def is_peak(self) -> bool:
-        """Returns True during rush hours — used to select speed limits."""
-        return self in {TimePeriod.MORNING_PEAK, TimePeriod.EVENING_PEAK}
+    @classmethod
+    def from_string(cls, label: str) -> "TimePeriod":
+        mapping = {
+            "morningpeak":  cls.MORNING_PEAK,
+            "morning":      cls.MORNING_PEAK,
+            "morning_peak": cls.MORNING_PEAK,
+            "afternoon":    cls.AFTERNOON,
+            "eveningpeak":  cls.EVENING_PEAK,
+            "evening":      cls.EVENING_PEAK,
+            "evening_peak": cls.EVENING_PEAK,
+            "night":        cls.NIGHT,
+        }
+        key = label.strip().lower().replace(" ", "")
+        if key not in mapping:
+            raise ValueError(f"Unknown time period: '{label}'")
+        return mapping[key]
 
     def label(self) -> str:
-        windows = {
-            TimePeriod.MORNING_PEAK : "07:00 – 09:00",
-            TimePeriod.AFTERNOON    : "09:00 – 16:00",
-            TimePeriod.EVENING_PEAK : "16:00 – 19:00",
-            TimePeriod.NIGHT        : "19:00 – 07:00",
+        labels = {
+            TimePeriod.MORNING_PEAK: "Morning Peak  (07:00 – 09:00)",
+            TimePeriod.AFTERNOON:    "Afternoon     (09:00 – 16:00)",
+            TimePeriod.EVENING_PEAK: "Evening Peak  (16:00 – 19:00)",
+            TimePeriod.NIGHT:        "Night         (19:00 – 07:00)",
         }
-        return f"{self.value}  ({windows[self]})"
+        return labels[self]
 
 
 # ---------------------------------------------------------------------------
-# Congestion Thresholds
+# Congestion thresholds (from Section 3C of the dataset)
 # ---------------------------------------------------------------------------
 
-# These thresholds define how the flow/capacity ratio maps to a time penalty.
-# Based on the BPR congestion model, simplified to three tiers:
-#   ratio >= 0.90  →  severe   (x3.0)  road is effectively gridlocked
-#   ratio >= 0.75  →  moderate (x1.8)  noticeable slowdown
-#   ratio <  0.75  →  clear    (x1.0)  free-flowing traffic
+class CongestionLevel(Enum):
+    CLEAR    = "clear"     # ratio < 0.75  → factor = 1.0
+    MODERATE = "moderate"  # ratio >= 0.75 → factor = 1.8
+    SEVERE   = "severe"    # ratio >= 0.90 → factor = 3.0
 
-SEVERE_CONGESTION_THRESHOLD   = 0.90
-MODERATE_CONGESTION_THRESHOLD = 0.75
+    def factor(self) -> float:
+        return {
+            CongestionLevel.CLEAR:    1.0,
+            CongestionLevel.MODERATE: 1.8,
+            CongestionLevel.SEVERE:   3.0,
+        }[self]
 
-SEVERE_MULTIPLIER   = 3.0
-MODERATE_MULTIPLIER = 1.8
-CLEAR_MULTIPLIER    = 1.0
+    @classmethod
+    def from_ratio(cls, ratio: float) -> "CongestionLevel":
+        if ratio >= 0.90:
+            return cls.SEVERE
+        if ratio >= 0.75:
+            return cls.MODERATE
+        return cls.CLEAR
 
 
 # ---------------------------------------------------------------------------
-# Edge Class
+# Edge (road segment)
 # ---------------------------------------------------------------------------
 
 class Edge:
     """
-    Represents a directed road segment from one node to another.
-
-    Since all roads in Cairo's dataset are bidirectional, the Graph class
-    creates two Edge objects per road (forward and backward), each carrying
-    the same data but with from_node and to_node swapped.
+    A weighted, bidirectional road connecting two nodes.
 
     Parameters
     ----------
-    from_node         : Origin Node
-    to_node           : Destination Node
-    distance          : Road length in kilometers
-    capacity          : Maximum flow in vehicles per hour
-    condition         : Road surface quality from 1 (poor) to 10 (perfect)
-    is_existing       : True for current roads, False for potential new ones
-    construction_cost : Capital cost in million EGP (for potential roads only)
+    from_id      : str   — ID of the first endpoint node
+    to_id        : str   — ID of the second endpoint node
+    distance     : float — length in km
+    capacity     : int   — maximum flow in vehicles/hour
+    condition    : int   — road condition score 1–10 (10 = perfect)
+    is_potential : bool  — True for roads that don't exist yet (2C dataset)
+    cost_millions: float — construction cost in million EGP (potential roads only)
+
+    Optional (set after construction by Graph._load_*):
+    normal_speed   : float — km/h under free-flow conditions
+    rush_speed     : float — km/h during peak hours
+    flow_morning   : int   — measured traffic flow during morning peak (veh/h)
+    flow_afternoon : int
+    flow_evening   : int
+    flow_night     : int
+    maint_cost     : float — annual maintenance cost (million EGP)
+    maint_priority : int   — maintenance priority score 1–5
     """
 
     def __init__(
         self,
-        from_node,
-        to_node,
-        distance          : float,
-        capacity          : int,
-        condition         : int,
-        is_existing       : bool  = True,
-        construction_cost : float = 0.0,
+        from_id:       str,
+        to_id:         str,
+        distance:      float,
+        capacity:      int,
+        condition:     int,
+        is_potential:  bool  = False,
+        cost_millions: float = 0.0,
     ):
-        self.from_node         = from_node
-        self.to_node           = to_node
-        self.distance          = distance
-        self.capacity          = capacity
-        self.condition         = condition
-        self.is_existing       = is_existing
-        self.construction_cost = construction_cost
+        # Core identity
+        self.from_id      = from_id.strip()
+        self.to_id        = to_id.strip()
+        self.distance     = distance      # km
+        self.capacity     = capacity      # veh/h
+        self.condition    = condition     # 1–10
+        self.is_potential = is_potential  # doesn't physically exist yet
+        self.cost_millions = cost_millions
 
-        # Traffic flow per period — loaded after construction via set_traffic_flow()
-        self._flow = {
-            TimePeriod.MORNING_PEAK : 0,
-            TimePeriod.AFTERNOON    : 0,
-            TimePeriod.EVENING_PEAK : 0,
-            TimePeriod.NIGHT        : 0,
-        }
+        # Speed limits (populated by Graph._load_speeds)
+        self.normal_speed: float = 60.0   # sensible default
+        self.rush_speed:   float = 30.0
 
-        # Speed limits — loaded after construction via set_speed_limits()
-        self._normal_speed    = 60.0   # km/h  (default for unset roads)
-        self._rush_hour_speed = 30.0   # km/h
+        # Traffic flow per period (populated by Graph._load_traffic_flow)
+        self.flow_morning:   int = 0
+        self.flow_afternoon: int = 0
+        self.flow_evening:   int = 0
+        self.flow_night:     int = 0
 
-        # Maintenance data — loaded after construction via set_maintenance_data()
-        self.maintenance_cost = 0.0
-        self.priority         = 1      # 1 (low) to 5 (critical)
+        # Maintenance data (populated by Graph._load_maintenance)
+        self.maint_cost:     float = 0.0
+        self.maint_priority: int   = 1
 
     # ------------------------------------------------------------------
-    # Core Weight Engine
+    # Canonical edge key — lets Graph look up edges in O(1)
+    # ------------------------------------------------------------------
+
+    @property
+    def key(self) -> str:
+        """
+        A consistent, order-independent identifier for this road.
+        Always returns the lexicographically smaller node ID first,
+        so edge (A→B) and edge (B→A) share the same key.
+        """
+        a, b = sorted([self.from_id, self.to_id])
+        return f"{a}-{b}"
+
+    # ------------------------------------------------------------------
+    # Flow accessor
+    # ------------------------------------------------------------------
+
+    def get_flow(self, period: TimePeriod) -> int:
+        """Return the measured traffic volume for the given time period."""
+        return {
+            TimePeriod.MORNING_PEAK: self.flow_morning,
+            TimePeriod.AFTERNOON:    self.flow_afternoon,
+            TimePeriod.EVENING_PEAK: self.flow_evening,
+            TimePeriod.NIGHT:        self.flow_night,
+        }[period]
+
+    # ------------------------------------------------------------------
+    # Congestion computation
+    # ------------------------------------------------------------------
+
+    def congestion_level(self, period: TimePeriod) -> CongestionLevel:
+        """Classify the current congestion based on flow-to-capacity ratio."""
+        if self.capacity == 0:
+            return CongestionLevel.SEVERE
+        ratio = self.get_flow(period) / self.capacity
+        return CongestionLevel.from_ratio(ratio)
+
+    def congestion_ratio(self, period: TimePeriod) -> float:
+        """Return the raw flow / capacity ratio (0.0 – 1.0+)."""
+        if self.capacity == 0:
+            return 1.0
+        return self.get_flow(period) / self.capacity
+
+    # ------------------------------------------------------------------
+    # Travel time — the edge weight used by all routing algorithms
     # ------------------------------------------------------------------
 
     def get_weight(self, period: TimePeriod) -> float:
         """
-        Computes the effective travel time for this road segment in minutes,
-        accounting for the current time period and observed congestion level.
+        Compute travel time in minutes for the given time period.
 
-        This is the value Dijkstra and A* use as the edge weight.
+        Formula (from Section 3C of the dataset):
+            travel_time = (distance / speed) * 60 * congestion_factor
 
-        Formula
-        -------
-          base_time     = (distance / speed) * 60
-          congestion    = flow / capacity
-          travel_time   = base_time * congestion_multiplier(congestion)
-
-        Parameters
-        ----------
-        period : TimePeriod — the time window being queried
+        Speed selection:
+          — Morning Peak / Evening Peak → rush_speed
+          — Afternoon / Night           → normal_speed
 
         Returns
         -------
-        float : Travel time in minutes (always positive)
+        float — travel time in minutes (always > 0)
         """
-        speed     = self._rush_hour_speed if period.is_peak() else self._normal_speed
-        base_time = (self.distance / speed) * 60.0
+        is_rush = period in (TimePeriod.MORNING_PEAK, TimePeriod.EVENING_PEAK)
+        speed   = self.rush_speed if is_rush else self.normal_speed
 
-        ratio = self._congestion_ratio(period)
+        # Guard against zero-speed data issues
+        if speed <= 0:
+            speed = 10.0
 
-        if ratio >= SEVERE_CONGESTION_THRESHOLD:
-            return round(base_time * SEVERE_MULTIPLIER, 3)
-        elif ratio >= MODERATE_CONGESTION_THRESHOLD:
-            return round(base_time * MODERATE_MULTIPLIER, 3)
-        else:
-            return round(base_time * CLEAR_MULTIPLIER, 3)
+        base_time         = (self.distance / speed) * 60.0
+        congestion_factor = self.congestion_level(period).factor()
 
-    def get_mst_weight(self) -> float:
+        return base_time * congestion_factor
+
+    def get_weight_summary(self, period: TimePeriod) -> dict:
         """
-        Weight used by Kruskal's MST algorithm.
-
-        Rather than raw distance, this applies a condition penalty:
-        a road in poor condition costs more to incorporate into the
-        network because it will require immediate maintenance investment.
-
-          mst_weight = distance * condition_penalty
-          condition_penalty = (11 - condition) / 10
-
-        A road with condition=10 (perfect) has penalty 0.1 → low weight.
-        A road with condition=1  (failed)  has penalty 1.0 → high weight.
+        Return a full diagnostic breakdown of the weight computation.
+        Used by main.py to display per-road detail in routing results.
         """
-        condition_penalty = (11 - self.condition) / 10.0
-        return round(self.distance * condition_penalty, 4)
+        is_rush = period in (TimePeriod.MORNING_PEAK, TimePeriod.EVENING_PEAK)
+        speed   = self.rush_speed if is_rush else self.normal_speed
+        if speed <= 0:
+            speed = 10.0
+
+        level = self.congestion_level(period)
+        return {
+            "edge":              self.key,
+            "distance_km":       self.distance,
+            "speed_kmh":         speed,
+            "flow_veh_h":        self.get_flow(period),
+            "capacity_veh_h":    self.capacity,
+            "congestion_ratio":  round(self.congestion_ratio(period), 3),
+            "congestion_level":  level.name,
+            "congestion_factor": level.factor(),
+            "travel_time_min":   round(self.get_weight(period), 2),
+        }
 
     # ------------------------------------------------------------------
-    # Congestion Analysis
-    # ------------------------------------------------------------------
-
-    def congestion_ratio(self, period: TimePeriod) -> float:
-        """Returns the flow-to-capacity ratio for the given period."""
-        return self._congestion_ratio(period)
-
-    def congestion_level(self, period: TimePeriod) -> str:
-        """Returns a human-readable congestion label for the given period."""
-        ratio = self._congestion_ratio(period)
-        if ratio >= SEVERE_CONGESTION_THRESHOLD:
-            return "SEVERE"
-        elif ratio >= MODERATE_CONGESTION_THRESHOLD:
-            return "MODERATE"
-        else:
-            return "CLEAR"
-
-    def is_congested(self, period: TimePeriod) -> bool:
-        """True if the road is at or above moderate congestion threshold."""
-        return self._congestion_ratio(period) >= MODERATE_CONGESTION_THRESHOLD
-
-    def _congestion_ratio(self, period: TimePeriod) -> float:
-        if self.capacity == 0:
-            return 0.0
-        return self._flow[period] / self.capacity
-
-    # ------------------------------------------------------------------
-    # Setters — called by Graph during data loading
-    # ------------------------------------------------------------------
-
-    def set_traffic_flow(
-        self,
-        morning   : int,
-        afternoon : int,
-        evening   : int,
-        night     : int,
-    ) -> None:
-        """Loads the four-period traffic flow measurements for this road."""
-        self._flow[TimePeriod.MORNING_PEAK] = morning
-        self._flow[TimePeriod.AFTERNOON]    = afternoon
-        self._flow[TimePeriod.EVENING_PEAK] = evening
-        self._flow[TimePeriod.NIGHT]        = night
-
-    def set_speed_limits(self, normal: float, rush_hour: float) -> None:
-        """Sets normal and rush-hour speed limits in km/h."""
-        self._normal_speed    = normal
-        self._rush_hour_speed = rush_hour
-
-    def set_maintenance_data(self, cost: float, priority: int) -> None:
-        """
-        Attaches maintenance metadata used by the DP resource allocation
-        algorithm to select which roads to repair within budget.
-        """
-        self.maintenance_cost = cost
-        self.priority         = priority
-
-    # ------------------------------------------------------------------
-    # Accessors
-    # ------------------------------------------------------------------
-
-    def flow(self, period: TimePeriod) -> int:
-        """Returns the measured traffic flow for the given period."""
-        return self._flow[period]
-
-    def speed(self, period: TimePeriod) -> float:
-        """Returns the applicable speed limit for the given period."""
-        return self._rush_hour_speed if period.is_peak() else self._normal_speed
-
-    # ------------------------------------------------------------------
-    # Display
+    # Dunder methods
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
-        tag = "existing" if self.is_existing else f"potential | cost={self.construction_cost}M EGP"
+        kind = "POTENTIAL" if self.is_potential else "road"
         return (
-            f"Edge({self.from_node.name} → {self.to_node.name} | "
-            f"{self.distance} km | cond={self.condition}/10 | {tag})"
+            f"Edge({self.from_id}↔{self.to_id}, "
+            f"{self.distance} km, cap={self.capacity}, "
+            f"cond={self.condition}/10, [{kind}])"
         )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Edge):
+            return NotImplemented
+        return self.key == other.key
+
+    def __hash__(self) -> int:
+        return hash(self.key)
+
+    def __lt__(self, other: "Edge") -> bool:
+        """Allow edges to be sorted by distance (used in Kruskal's)."""
+        return self.distance < other.distance
