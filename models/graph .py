@@ -9,20 +9,19 @@ or facility drawn from the project dataset. Every edge is a real road with
 measured capacity, condition, traffic flow across four daily periods, speed
 limits, and maintenance metadata.
 
-Design choice — Adjacency List
+Design choice : Adjacency List
     With 25 nodes and 34 existing edges the graph is sparse
     (density ≈ 11%). An adjacency list costs O(V + E) in space
     and gives O(degree) neighbor lookup, which is exactly what
     Dijkstra and A* need in their inner loop. An adjacency matrix
     would waste O(V²) space and offer no benefit here.
 
-Design choice — Bidirectional edges
+Design choice : Bidirectional edges
     All roads in the dataset are bidirectional. The graph stores
     two Edge objects per road (forward + backward) so that every
     algorithm can treat neighbor traversal uniformly without
     needing to check both directions manually.
 
-Author : Cairo Transport System — CSE112
 """
 
 from collections import defaultdict
