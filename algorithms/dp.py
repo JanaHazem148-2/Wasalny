@@ -1,11 +1,11 @@
-# ============================================================
+
 # Public Transportation Optimization using Dynamic Programming
 # Goal:
 # 1) Optimize bus + metro schedules
 # 2) Allocate transportation resources efficiently
 # 3) Build integrated transportation network
 # 4) Optimize transfer points
-# ============================================================
+
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -40,31 +40,27 @@ routes = [
 ]
 
 for u, v, time, mode in routes:
-    G.add_edge(u, v, weight=time, mode=mode)
+    G.add_edge(u, v, weight=time, mode=mode) #constructing the graph
 
-# ============================================================
 # PART 2: DYNAMIC PROGRAMMING FOR SCHEDULING
 # DP[node] = Minimum travel time from source
-# ============================================================
 
 def optimize_schedule(graph, source):
-    dp = {node: float('inf') for node in graph.nodes}
-    dp[source] = 0
-    parent = {}
+    dp = {node: float('inf') for node in graph.nodes} #i initialized dictionary for dp and made every node = infinity bec. i don't know the nodes yet
+    dp[source] = 0  # i initialized the starting point=0 bec. i don't know the start yet 
+    parent = {}   #to know what is the parent node of the new node to return the full path at the end
 
     # Relax edges repeatedly (Bellman-Ford style DP)
-    for _ in range(len(graph.nodes) - 1):
+    for _ in range(len(graph.nodes) - 1):    #in range of edges bec. num of edges=n-1 ,_ means We need to repeat this loop several times, but we do NOT care about the loop variable itself.
         for u, v, data in graph.edges(data=True):
-            if dp[u] + data['weight'] < dp[v]:
+            if dp[u] + data['weight'] < dp[v]:    #we check if the current path is faster than the next path
                 dp[v] = dp[u] + data['weight']
                 parent[v] = u
 
     return dp, parent
 
-# ============================================================
 # PART 3: RESOURCE ALLOCATION USING DP (Knapsack Style)
-# Goal: Maximize coverage with limited buses
-# ============================================================
+# Goal: Maximize coverage ( passengers ) with limited buses
 
 def allocate_buses(route_demands, total_buses):
     n = len(route_demands)
