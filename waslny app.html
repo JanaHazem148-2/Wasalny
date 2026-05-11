@@ -1,0 +1,1605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wasalny — Cairo Transportation Command Center</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+:root {
+  --bg0:#090b0e;--bg1:#0f1217;--bg2:#161b22;--bg3:#1c2330;--bg4:#232a36;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --txt:#dfe0da;--muted:#6b7280;--dim:#9ca3af;
+  --blue:#3b8aed;--gold:#f0a830;--green:#2ec27e;--red:#e5534b;--purple:#a78bfa;--teal:#2dd4bf;
+  --blue-dim:rgba(59,138,237,0.12);--gold-dim:rgba(240,168,48,0.12);
+  --blue-mid:rgba(59,138,237,0.35);--gold-mid:rgba(240,168,48,0.35);
+  --green-dim:rgba(46,194,126,0.12);--red-dim:rgba(229,83,75,0.12);
+  --teal-dim:rgba(45,212,191,0.12);--purple-dim:rgba(167,139,250,0.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg0);color:var(--txt);font-family:"SF Mono","Fira Code",monospace;font-size:12px;min-height:100vh;overflow:hidden;}
+
+/* ─── LAYOUT ─── */
+.app{display:flex;flex-direction:column;height:100vh;}
+header{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:0.5px solid var(--border2);background:var(--bg1);flex-shrink:0;z-index:100;}
+.logo{font-size:14px;font-weight:800;letter-spacing:0.1em;color:var(--txt);}
+.logo em{color:var(--blue);font-style:normal;}
+.subtitle{font-size:10px;color:var(--muted);letter-spacing:0.06em;margin-right:auto;}
+.nav{display:flex;gap:2px;}
+.tab{background:none;border:none;color:var(--muted);font-family:inherit;font-size:10px;letter-spacing:0.07em;text-transform:uppercase;padding:5px 10px;border-radius:5px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all 0.15s;}
+.tab:hover{color:var(--txt);background:var(--bg3);}
+.tab.active{color:var(--txt);background:var(--bg3);border:0.5px solid var(--border2);}
+.tab i{font-size:13px;}
+
+.body{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:230px;min-width:230px;background:var(--bg1);border-right:0.5px solid var(--border);padding:12px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;}
+.main{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+
+/* ─── PANELS ─── */
+.panel{display:none;flex:1;overflow:hidden;flex-direction:column;}
+.panel.active{display:flex;}
+
+/* ─── CONTROLS ─── */
+.ctrl-group{display:flex;flex-direction:column;gap:4px;}
+.ctrl-label{font-size:9px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);}
+select,input[type=number]{background:var(--bg2);border:0.5px solid var(--border2);border-radius:5px;color:var(--txt);padding:5px 8px;font-size:11px;font-family:inherit;width:100%;appearance:none;}
+select option{background:#1c2330;color:var(--txt);}
+select:focus,input:focus{outline:none;border-color:var(--blue);}
+
+.run-btn{background:var(--blue);border:none;border-radius:6px;padding:8px;color:#fff;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.06em;width:100%;transition:opacity 0.15s,transform 0.1s;display:flex;align-items:center;justify-content:center;gap:5px;}
+.run-btn:hover{opacity:0.85;}
+.run-btn:active{transform:scale(0.98);}
+.run-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.run-btn.alt{background:var(--bg3);border:0.5px solid var(--border2);color:var(--txt);}
+
+.divider{height:0.5px;background:var(--border);}
+
+/* ─── STAT BLOCKS ─── */
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.stat{background:var(--bg2);border-radius:5px;padding:6px 8px;}
+.stat-val{font-size:14px;font-weight:700;}
+.stat-val.blue{color:var(--blue);}
+.stat-val.gold{color:var(--gold);}
+.stat-val.green{color:var(--green);}
+.stat-val.red{color:var(--red);}
+.stat-val.purple{color:var(--purple);}
+.stat-val.teal{color:var(--teal);}
+.stat-lbl{font-size:9px;color:var(--muted);margin-top:1px;}
+
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;letter-spacing:0.07em;}
+.badge.blue{background:var(--blue-dim);color:var(--blue);}
+.badge.gold{background:var(--gold-dim);color:var(--gold);}
+.badge.green{background:var(--green-dim);color:var(--green);}
+.badge.red{background:var(--red-dim);color:var(--red);}
+.badge.teal{background:var(--teal-dim);color:var(--teal);}
+.badge.purple{background:var(--purple-dim);color:var(--purple);}
+
+/* ─── MAP ─── */
+.map-wrap{flex:1;position:relative;overflow:hidden;}
+.map-wrap svg{width:100%;height:100%;display:block;}
+.map-header{position:absolute;top:0;left:0;right:0;z-index:10;padding:8px 12px;display:flex;align-items:center;gap:8px;background:linear-gradient(to bottom,var(--bg0) 55%,transparent);}
+
+/* ─── RACE ─── */
+.race-maps{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden;}
+.rmap{position:relative;overflow:hidden;border-right:0.5px solid var(--border);}
+.rmap:last-child{border-right:none;}
+.rmap-hdr{position:absolute;top:0;left:0;right:0;z-index:10;padding:8px 12px;display:flex;align-items:center;gap:8px;background:linear-gradient(to bottom,var(--bg0) 55%,transparent);}
+.rmap svg{width:100%;height:100%;display:block;}
+.prog-wrap{flex:1;height:2px;background:var(--border);border-radius:2px;}
+.prog-bar{height:100%;border-radius:2px;transition:width 0.05s linear;}
+.prog-bar.blue{background:var(--blue);}
+.prog-bar.gold{background:var(--gold);}
+.logs{height:90px;background:var(--bg1);border-top:0.5px solid var(--border);display:flex;overflow:hidden;}
+.log-col{flex:1;padding:6px 10px;overflow-y:auto;border-right:0.5px solid var(--border);}
+.log-col:last-child{border-right:none;}
+.log-title{font-size:9px;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;}
+.log-entry{font-size:9px;color:var(--muted);padding:1px 0;line-height:1.4;}
+.log-entry span{color:var(--txt);}
+.winner{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:7px;text-align:center;font-size:10px;color:var(--muted);min-height:32px;display:flex;align-items:center;justify-content:center;}
+
+/* ─── SPEED ─── */
+.speed-row{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--muted);}
+.speed-row input[type=range]{flex:1;accent-color:var(--blue);}
+
+/* ─── ALGO PAIR ─── */
+.algo-pair{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.algo-card{background:var(--bg2);border:0.5px solid var(--border2);border-radius:6px;padding:6px;}
+.algo-card.l{border-color:var(--blue-mid);}
+.algo-card.r{border-color:var(--gold-mid);}
+.algo-tag{font-size:9px;font-weight:700;letter-spacing:0.08em;margin-bottom:3px;}
+.algo-tag.l{color:var(--blue);}
+.algo-tag.r{color:var(--gold);}
+.algo-card select{background:var(--bg2);border:none;padding:2px 0;font-size:10px;color:var(--txt);width:100%;}
+.algo-card select option{background:var(--bg2);color:var(--txt);}
+
+/* ─── NETWORK ─── */
+.net-panel{flex:1;display:flex;overflow:hidden;}
+.net-map{flex:1;position:relative;overflow:hidden;}
+.net-map svg{width:100%;height:100%;display:block;}
+.net-info{width:200px;background:var(--bg1);border-left:0.5px solid var(--border);padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;}
+.hotspot{background:var(--bg2);border-radius:5px;padding:6px;border-left:2px solid;}
+.hotspot.low{border-color:var(--green);}
+.hotspot.moderate{border-color:var(--gold);}
+.hotspot.high{border-color:var(--gold);}
+.hotspot.severe{border-color:var(--red);}
+.hotspot-name{font-size:10px;font-weight:700;color:var(--txt);}
+.hotspot-ratio{font-size:9px;color:var(--muted);}
+
+/* ─── EMERGENCY ─── */
+.emrg-result{background:var(--bg2);border:0.5px solid var(--red);border-radius:6px;padding:8px;font-size:10px;}
+.emrg-time-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:6px;}
+.emrg-t{background:var(--bg3);border-radius:5px;padding:5px 6px;text-align:center;}
+.signal-row{background:var(--bg2);border-radius:4px;padding:4px 6px;font-size:9px;display:flex;justify-content:space-between;align-items:center;}
+.signal-list{display:flex;flex-direction:column;gap:3px;max-height:120px;overflow-y:auto;}
+
+/* ─── MST ─── */
+.mst-info-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.new-road{background:var(--bg2);border-radius:4px;padding:5px 7px;font-size:10px;border-left:2px solid var(--teal);}
+
+/* ─── TRANSIT ─── */
+.route-card{background:var(--bg2);border-radius:5px;padding:6px 8px;border-left:2px solid;}
+.route-card.metro{border-color:var(--blue);}
+.route-card.bus{border-color:var(--gold);}
+.route-name{font-size:10px;font-weight:700;}
+.route-bar-wrap{height:3px;background:var(--bg4);border-radius:2px;margin:4px 0;}
+.route-bar{height:100%;border-radius:2px;}
+.transit-scroll{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:5px;}
+
+/* ─── TOOLTIP ─── */
+.tip{position:fixed;background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:10px;pointer-events:none;z-index:999;display:none;max-width:180px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══════════ HEADER ══════════ -->
+<header>
+  <div class="logo">WASAL<em>NY</em></div>
+  <div class="subtitle">Cairo Transportation Command Center</div>
+  <nav class="nav">
+    <button class="tab active" data-tab="network" onclick="switchTab(this)"><i class="ti ti-map-2"></i>Network</button>
+    <button class="tab" data-tab="route" onclick="switchTab(this)"><i class="ti ti-route"></i>Route</button>
+    <button class="tab" data-tab="race" onclick="switchTab(this)"><i class="ti ti-player-play"></i>Race</button>
+    <button class="tab" data-tab="emergency" onclick="switchTab(this)"><i class="ti ti-ambulance"></i>Emergency</button>
+    <button class="tab" data-tab="mst" onclick="switchTab(this)"><i class="ti ti-topology-star-3"></i>MST</button>
+    <button class="tab" data-tab="transit" onclick="switchTab(this)"><i class="ti ti-bus"></i>Transit</button>
+  </nav>
+</header>
+
+<div class="body">
+
+<!-- ══════════ NETWORK SIDEBAR ══════════ -->
+<aside class="sidebar" id="sb-network">
+  <div class="ctrl-group">
+    <div class="ctrl-label">Traffic Period</div>
+    <select id="net-period" onchange="loadNetwork()">
+      <option value="morning">Morning Peak</option>
+      <option value="afternoon" selected>Afternoon</option>
+      <option value="evening">Evening Peak</option>
+      <option value="night">Night</option>
+    </select>
+  </div>
+  <div class="divider"></div>
+  <div class="ctrl-label" style="margin-bottom:4px">Summary</div>
+  <div class="stat-row">
+    <div class="stat"><div class="stat-val blue" id="net-nodes">—</div><div class="stat-lbl">Nodes</div></div>
+    <div class="stat"><div class="stat-val teal" id="net-edges">—</div><div class="stat-lbl">Edges</div></div>
+    <div class="stat"><div class="stat-val red" id="net-crit">—</div><div class="stat-lbl">Critical</div></div>
+    <div class="stat"><div class="stat-val gold" id="net-routes">—</div><div class="stat-lbl">Routes</div></div>
+  </div>
+  <div class="divider"></div>
+  <div class="ctrl-label" style="margin-bottom:4px">Legend</div>
+  <div style="display:flex;flex-direction:column;gap:4px;font-size:9px;color:var(--muted)">
+    <div style="display:flex;align-items:center;gap:6px"><span style="width:20px;height:2px;background:var(--green);display:inline-block"></span>Low congestion</div>
+    <div style="display:flex;align-items:center;gap:6px"><span style="width:20px;height:2px;background:var(--gold);display:inline-block"></span>Moderate</div>
+    <div style="display:flex;align-items:center;gap:6px"><span style="width:20px;height:2px;background:var(--red);display:inline-block"></span>High / Severe</div>
+    <div style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);border:1.5px solid var(--red);display:inline-block"></span>Critical node</div>
+  </div>
+  <div class="divider"></div>
+  <div class="ctrl-label" style="margin-bottom:4px">Hotspots</div>
+  <div id="hotspot-list" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:220px;"></div>
+</aside>
+
+<!-- ══════════ ROUTE SIDEBAR ══════════ -->
+<aside class="sidebar" id="sb-route" style="display:none">
+  <div class="ctrl-group">
+    <div class="ctrl-label">From</div>
+    <select id="r-start"></select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">To</div>
+    <select id="r-end"></select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Algorithm</div>
+    <select id="r-algo">
+      <option value="dijkstra">Dijkstra</option>
+      <option value="astar" selected>A* Search</option>
+      <option value="least">Least Congested</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Period</div>
+    <select id="r-period">
+      <option value="morning">Morning Peak</option>
+      <option value="afternoon" selected>Afternoon</option>
+      <option value="evening">Evening Peak</option>
+      <option value="night">Night</option>
+    </select>
+  </div>
+  <button class="run-btn" onclick="runRoute()"><i class="ti ti-route"></i> FIND ROUTE</button>
+  <div class="divider"></div>
+  <div id="route-stats" style="display:flex;flex-direction:column;gap:5px;">
+    <div class="stat-row">
+      <div class="stat"><div class="stat-val blue" id="r-time">—</div><div class="stat-lbl">Minutes</div></div>
+      <div class="stat"><div class="stat-val gold" id="r-hops">—</div><div class="stat-lbl">Hops</div></div>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-val teal" id="r-nodes">—</div><div class="stat-lbl">Nodes visited</div></div>
+      <div class="stat"><div class="stat-val purple" id="r-edges-c">—</div><div class="stat-lbl">Edges checked</div></div>
+    </div>
+  </div>
+  <div id="route-path-box" style="display:none;background:var(--bg2);border-radius:5px;padding:6px 8px;font-size:9px;color:var(--dim);line-height:1.6;"></div>
+</aside>
+
+<!-- ══════════ RACE SIDEBAR ══════════ -->
+<aside class="sidebar" id="sb-race" style="display:none">
+  <div class="ctrl-group">
+    <div class="ctrl-label">From</div>
+    <select id="race-start"></select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">To</div>
+    <select id="race-end"></select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Period</div>
+    <select id="race-period">
+      <option value="morning">Morning Peak</option>
+      <option value="afternoon" selected>Afternoon</option>
+      <option value="evening">Evening Peak</option>
+      <option value="night">Night</option>
+    </select>
+  </div>
+  <div class="ctrl-label" style="margin-bottom:4px">Algorithms</div>
+  <div class="algo-pair">
+    <div class="algo-card l"><div class="algo-tag l">LEFT</div>
+      <select id="algoA">
+        <option value="dijkstra">Dijkstra</option>
+        <option value="astar">A* Search</option>
+        <option value="time_varying">Time-Varying</option>
+        <option value="alternate">Alternate Route</option>
+        <option value="least">Least Congested</option>
+        <option value="bfs">BFS (unweighted)</option>
+        <option value="bellman">Bellman-Ford / DP</option>
+        <option value="greedy">Greedy (signal-aware)</option>
+        <option value="bidir">Bidirectional Dijkstra</option>
+      </select>
+    </div>
+    <div class="algo-card r"><div class="algo-tag r">RIGHT</div>
+      <select id="algoB">
+        <option value="dijkstra">Dijkstra</option>
+        <option value="astar" selected>A* Search</option>
+        <option value="time_varying">Time-Varying</option>
+        <option value="alternate">Alternate Route</option>
+        <option value="least">Least Congested</option>
+        <option value="bfs">BFS (unweighted)</option>
+        <option value="bellman">Bellman-Ford / DP</option>
+        <option value="greedy">Greedy (signal-aware)</option>
+        <option value="bidir">Bidirectional Dijkstra</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:2px;">
+    <div id="algoA-desc" style="font-size:8px;color:var(--muted);line-height:1.4;padding:4px 6px;background:var(--bg2);border-radius:4px;border-left:2px solid var(--blue-mid);min-height:36px;"></div>
+    <div id="algoB-desc" style="font-size:8px;color:var(--muted);line-height:1.4;padding:4px 6px;background:var(--bg2);border-radius:4px;border-left:2px solid var(--gold-mid);min-height:36px;"></div>
+  </div>
+  <!-- Time-Varying hour control -->
+  <div id="tv-hour-row" style="display:none;" class="ctrl-group">
+    <div class="ctrl-label">Departure Hour (time-varying)</div>
+    <select id="tv-hour">
+      <option value="7">7 AM (Morning Peak)</option>
+      <option value="8">8 AM (Morning Peak)</option>
+      <option value="9">9 AM (Morning Peak)</option>
+      <option value="12" selected>12 PM (Afternoon)</option>
+      <option value="14">2 PM (Afternoon)</option>
+      <option value="16">4 PM (Evening Peak)</option>
+      <option value="18">6 PM (Evening Peak)</option>
+      <option value="22">10 PM (Night)</option>
+    </select>
+  </div>
+  <!-- Alternate Route blocked edge control -->
+  <div id="alt-block-row" style="display:none;" class="ctrl-group">
+    <div class="ctrl-label">Block edge (road closure)</div>
+    <select id="alt-blocked">
+      <option value="">None</option>
+      <option value="3-5">3–5 (Downtown↔Heliopolis)</option>
+      <option value="2-3">2–3 (Nasr City↔Downtown)</option>
+      <option value="1-3">1–3 (Maadi↔Downtown)</option>
+      <option value="3-f2">3–F2 (Downtown↔Ramses)</option>
+      <option value="7-8">7–8 (6th Oct↔Giza)</option>
+      <option value="8-10">8–10 (Giza↔Dokki)</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Speed</div>
+    <div class="speed-row"><span>Slow</span><input type="range" id="speedSlider" min="1" max="10" value="5"><span>Fast</span></div>
+  </div>
+  <button class="run-btn" id="runBtn" onclick="runRace()"><i class="ti ti-player-play"></i> START RACE</button>
+  <div class="divider"></div>
+  <div class="stat-row">
+    <div class="stat"><div class="stat-val blue" id="statTimeA">—</div><div class="stat-lbl">Time L (min)</div></div>
+    <div class="stat"><div class="stat-val gold" id="statTimeB">—</div><div class="stat-lbl">Time R (min)</div></div>
+    <div class="stat"><div class="stat-val blue" id="statNodesA">—</div><div class="stat-lbl">Nodes L</div></div>
+    <div class="stat"><div class="stat-val gold" id="statNodesB">—</div><div class="stat-lbl">Nodes R</div></div>
+    <div class="stat"><div class="stat-val blue" id="statEdgesA">—</div><div class="stat-lbl">Edges L</div></div>
+    <div class="stat"><div class="stat-val gold" id="statEdgesB">—</div><div class="stat-lbl">Edges R</div></div>
+  </div>
+  <div class="winner" id="winnerBadge">Race not started</div>
+</aside>
+
+<!-- ══════════ EMERGENCY SIDEBAR ══════════ -->
+<aside class="sidebar" id="sb-emergency" style="display:none">
+  <div class="ctrl-group">
+    <div class="ctrl-label">Origin (Incident)</div>
+    <select id="emrg-origin"></select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Period</div>
+    <select id="emrg-period">
+      <option value="morning">Morning Peak</option>
+      <option value="afternoon" selected>Afternoon</option>
+      <option value="evening">Evening Peak</option>
+      <option value="night">Night</option>
+    </select>
+  </div>
+  <button class="run-btn" style="background:var(--red);" onclick="runEmergency()"><i class="ti ti-ambulance"></i> DISPATCH</button>
+  <div class="divider"></div>
+  <div id="emrg-result" style="display:none;flex-direction:column;gap:5px;">
+    <div class="emrg-result">
+      <div style="font-size:9px;color:var(--muted)">Nearest Hospital</div>
+      <div id="emrg-hospital" style="font-size:12px;font-weight:700;margin-top:2px;color:var(--red)">—</div>
+      <div class="emrg-time-row">
+        <div class="emrg-t"><div class="stat-val gold" id="emrg-travel">—</div><div class="stat-lbl">Travel min</div></div>
+        <div class="emrg-t"><div class="stat-val red" id="emrg-without">—</div><div class="stat-lbl">Without prempt</div></div>
+        <div class="emrg-t"><div class="stat-val green" id="emrg-with">—</div><div class="stat-lbl">With prempt</div></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;font-size:9px;color:var(--muted)">
+      <span>Time saved</span>
+      <span><span id="emrg-saved" style="color:var(--green);font-weight:700">—</span> min (<span id="emrg-pct">—</span>%)</span>
+    </div>
+    <div class="ctrl-label" style="margin-bottom:3px">Signal Preemptions</div>
+    <div class="signal-list" id="signal-list"></div>
+  </div>
+</aside>
+
+<!-- ══════════ MST SIDEBAR ══════════ -->
+<aside class="sidebar" id="sb-mst" style="display:none">
+  <div class="ctrl-group">
+    <div class="ctrl-label">Mode</div>
+    <select id="mst-mode">
+      <option value="distance">Minimize Distance</option>
+      <option value="cost">Minimize Cost</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <div class="ctrl-label">Include Potential Roads</div>
+    <select id="mst-potential">
+      <option value="false">No</option>
+      <option value="true">Yes</option>
+    </select>
+  </div>
+  <button class="run-btn" onclick="runMST()"><i class="ti ti-topology-star-3"></i> COMPUTE MST</button>
+  <div class="divider"></div>
+  <div class="stat-row">
+    <div class="stat"><div class="stat-val teal" id="mst-dist">—</div><div class="stat-lbl">Total km</div></div>
+    <div class="stat"><div class="stat-val gold" id="mst-cost">—</div><div class="stat-lbl">Cost M EGP</div></div>
+    <div class="stat"><div class="stat-val blue" id="mst-maint">—</div><div class="stat-lbl">Maint. cost</div></div>
+    <div class="stat"><div class="stat-val purple" id="mst-new">—</div><div class="stat-lbl">New roads</div></div>
+  </div>
+  <div id="mst-new-roads" style="display:flex;flex-direction:column;gap:4px;overflow-y:auto;max-height:200px;"></div>
+  <div id="mst-disc" style="display:none;background:var(--red-dim);border:0.5px solid var(--red);border-radius:5px;padding:6px;font-size:9px;color:var(--red)"></div>
+</aside>
+
+<!-- ══════════ TRANSIT SIDEBAR ══════════ -->
+<aside class="sidebar" id="sb-transit" style="display:none">
+  <div class="ctrl-group">
+    <div class="ctrl-label">Period</div>
+    <select id="tr-period" onchange="runTransit()">
+      <option value="morning">Morning Peak</option>
+      <option value="afternoon" selected>Afternoon</option>
+      <option value="evening">Evening Peak</option>
+      <option value="night">Night</option>
+    </select>
+  </div>
+  <div class="divider"></div>
+  <div class="stat-row">
+    <div class="stat"><div class="stat-val blue" id="tr-buses">—</div><div class="stat-lbl">Buses avail.</div></div>
+    <div class="stat"><div class="stat-val purple" id="tr-trains">—</div><div class="stat-lbl">Trains avail.</div></div>
+    <div class="stat"><div class="stat-val teal" id="tr-cap">—</div><div class="stat-lbl">Hourly cap</div></div>
+    <div class="stat"><div class="stat-val gold" id="tr-demand">—</div><div class="stat-lbl">Hourly demand</div></div>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;font-size:9px;">
+    <span style="color:var(--muted)">Coverage</span>
+    <span id="tr-cov" style="color:var(--green);font-weight:700">—%</span>
+  </div>
+  <div style="height:4px;background:var(--bg3);border-radius:2px;"><div id="tr-cov-bar" style="height:100%;background:var(--green);border-radius:2px;width:0%;transition:width 0.5s;"></div></div>
+  <div class="divider"></div>
+  <div class="ctrl-label" style="margin-bottom:4px">Routes</div>
+</aside>
+
+<!-- ══════════ MAIN CONTENT ══════════ -->
+<div class="main">
+
+<!-- NETWORK PANEL -->
+<div class="panel active" id="panel-network">
+  <div class="net-panel">
+    <div class="net-map">
+      <svg id="net-svg" viewBox="0 0 700 560"></svg>
+    </div>
+    <div class="net-info" id="net-info-box" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ROUTE PANEL -->
+<div class="panel" id="panel-route">
+  <div class="map-wrap">
+    <svg id="route-svg" viewBox="0 0 700 560"></svg>
+  </div>
+</div>
+
+<!-- RACE PANEL -->
+<div class="panel" id="panel-race">
+  <div class="race-maps">
+    <div class="rmap">
+      <div class="rmap-hdr">
+        <div class="badge blue" id="badgeA">DIJKSTRA</div>
+        <div class="prog-wrap"><div class="prog-bar blue" id="progA" style="width:0%"></div></div>
+      </div>
+      <svg id="svgA" viewBox="0 0 500 440"></svg>
+    </div>
+    <div class="rmap">
+      <div class="rmap-hdr">
+        <div class="badge gold" id="badgeB">A* SEARCH</div>
+        <div class="prog-wrap"><div class="prog-bar gold" id="progB" style="width:0%"></div></div>
+      </div>
+      <svg id="svgB" viewBox="0 0 500 440"></svg>
+    </div>
+  </div>
+  <div class="logs">
+    <div class="log-col"><div class="log-title blue" id="logTitleA">LEFT</div><div id="logA"></div></div>
+    <div class="log-col"><div class="log-title gold" id="logTitleB">RIGHT</div><div id="logB"></div></div>
+  </div>
+</div>
+
+<!-- EMERGENCY PANEL -->
+<div class="panel" id="panel-emergency">
+  <div class="map-wrap">
+    <div class="map-header">
+      <div class="badge red" id="emrg-badge" style="display:none">EMERGENCY ROUTE</div>
+    </div>
+    <svg id="emrg-svg" viewBox="0 0 700 560"></svg>
+  </div>
+</div>
+
+<!-- MST PANEL -->
+<div class="panel" id="panel-mst">
+  <div class="map-wrap">
+    <div class="map-header">
+      <div id="mst-badges" style="display:flex;gap:6px;"></div>
+    </div>
+    <svg id="mst-svg" viewBox="0 0 700 560"></svg>
+  </div>
+</div>
+
+<!-- TRANSIT PANEL -->
+<div class="panel" id="panel-transit">
+  <div style="display:flex;flex:1;overflow:hidden;">
+    <!-- Transit map -->
+    <div style="flex:1;position:relative;overflow:hidden;">
+      <svg id="tr-svg" viewBox="0 0 700 560"></svg>
+    </div>
+    <!-- Route list -->
+    <div style="width:280px;background:var(--bg1);border-left:0.5px solid var(--border);padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;" id="tr-route-list">
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /body -->
+</div><!-- /app -->
+<div class="tip" id="tip"></div>
+
+<script>
+// ═══ EMBEDDED CAIRO GRAPH DATA ═══
+const NODES = [
+  {id:"1",  name:"Maadi",             lon:31.25,lat:29.96,type:"Residential",critical:false},
+  {id:"2",  name:"Nasr City",         lon:31.34,lat:30.06,type:"Mixed",critical:false},
+  {id:"3",  name:"Downtown Cairo",    lon:31.24,lat:30.04,type:"Business",critical:true},
+  {id:"4",  name:"New Cairo",         lon:31.47,lat:30.03,type:"Residential",critical:false},
+  {id:"5",  name:"Heliopolis",        lon:31.32,lat:30.09,type:"Mixed",critical:false},
+  {id:"6",  name:"Zamalek",           lon:31.22,lat:30.06,type:"Residential",critical:false},
+  {id:"7",  name:"6th October",       lon:30.98,lat:29.93,type:"Mixed",critical:false},
+  {id:"8",  name:"Giza",              lon:31.21,lat:29.99,type:"Mixed",critical:true},
+  {id:"9",  name:"Mohandessin",       lon:31.20,lat:30.05,type:"Business",critical:false},
+  {id:"10", name:"Dokki",             lon:31.21,lat:30.03,type:"Mixed",critical:false},
+  {id:"11", name:"Shubra",            lon:31.24,lat:30.11,type:"Residential",critical:false},
+  {id:"12", name:"Helwan",            lon:31.33,lat:29.85,type:"Industrial",critical:false},
+  {id:"13", name:"New Capital",       lon:31.80,lat:30.02,type:"Government",critical:true},
+  {id:"14", name:"Al Rehab",          lon:31.49,lat:30.06,type:"Residential",critical:false},
+  {id:"15", name:"Sheikh Zayed",      lon:30.94,lat:30.01,type:"Residential",critical:false},
+  {id:"F1", name:"Airport",           lon:31.41,lat:30.11,type:"Airport",critical:true},
+  {id:"F2", name:"Ramses Station",    lon:31.25,lat:30.06,type:"Transit Hub",critical:true},
+  {id:"F3", name:"Cairo Univ.",       lon:31.21,lat:30.03,type:"Education",critical:false},
+  {id:"F4", name:"Al-Azhar Univ.",    lon:31.26,lat:30.05,type:"Education",critical:false},
+  {id:"F5", name:"Egyptian Museum",   lon:31.23,lat:30.05,type:"Tourism",critical:false},
+  {id:"F6", name:"Cairo Stadium",     lon:31.30,lat:30.07,type:"Sports",critical:false},
+  {id:"F7", name:"Smart Village",     lon:30.97,lat:30.07,type:"Business",critical:false},
+  {id:"F8", name:"Cairo Festival City",lon:31.40,lat:30.03,type:"Commercial",critical:false},
+  {id:"F9", name:"Qasr El Aini Hosp.",lon:31.23,lat:30.03,type:"Medical",critical:true},
+  {id:"F10",name:"Maadi Military Hosp.",lon:31.25,lat:29.95,type:"Medical",critical:true},
+];
+
+const EDGE_DATA = [
+  ["1","3",8.5,3000,2800,1500,2600,800,60,30],
+  ["1","8",6.2,2500,2200,1200,2100,600,70,35],
+  ["2","3",5.9,2800,2700,1400,2500,700,60,25],
+  ["2","5",4.0,3200,3000,1600,2800,650,80,40],
+  ["3","5",6.1,3500,3200,1700,3100,800,60,25],
+  ["3","6",3.2,2000,1800,1400,1900,500,50,20],
+  ["3","9",4.5,2600,2400,1300,2200,550,60,25],
+  ["3","10",3.8,2400,2300,1200,2100,500,60,25],
+  ["4","2",15.2,3800,3600,1800,3300,750,100,60],
+  ["4","14",5.3,3000,2800,1600,2600,600,90,55],
+  ["5","11",7.9,3100,2900,1500,2700,650,70,35],
+  ["6","9",2.2,1800,1700,1300,1800,450,50,20],
+  ["7","8",24.5,3500,3200,1700,3000,700,100,60],
+  ["7","15",9.8,3000,2800,1500,2600,600,90,55],
+  ["8","10",3.3,2200,2000,1100,1900,450,60,30],
+  ["8","12",14.8,2600,2400,1300,2200,500,80,45],
+  ["9","10",2.1,1900,1800,1200,1700,400,50,20],
+  ["10","11",8.7,2400,2200,1300,2100,500,60,30],
+  ["11","F2",3.6,2200,2100,1200,2000,450,60,30],
+  ["12","1",12.7,2800,2600,1400,2400,550,80,45],
+  ["13","4",45.0,4000,3800,2000,3500,800,120,80],
+  ["14","13",35.5,3800,3600,1900,3300,750,110,75],
+  ["15","7",9.8,3000,2800,1500,2600,600,90,55],
+  ["F1","5",7.5,3500,3300,2200,3100,1200,90,55],
+  ["F1","2",9.2,3200,3000,2000,2800,1100,90,55],
+  ["F2","3",2.5,2000,1900,1600,1800,900,50,20],
+  ["F7","15",8.3,2800,2600,1500,2400,550,80,50],
+  ["F8","4",6.1,3000,2800,1600,2600,600,90,55],
+  ["F9","3",1.2,1500,800,600,750,200,50,30],
+  ["F9","6",2.1,1200,600,450,580,150,50,30],
+  ["F9","10",2.5,1300,700,500,650,180,50,30],
+  ["F10","1",1.8,1400,700,520,670,190,60,35],
+  ["F10","12",3.2,1200,550,400,520,140,60,35],
+  ["F10","8",5.1,1500,750,550,700,200,70,40],
+];
+
+const TRANSIT_ROUTES = [
+  {id:"M1",type:"metro",stops:["F2","3","F9","10","8","12"],dailyPassengers:350000,buses:0,trainsCap:900,supply:[8,5,8,3]},
+  {id:"M2",type:"metro",stops:["F2","11","5","F1"],dailyPassengers:290000,buses:0,trainsCap:900,supply:[7,4,7,2]},
+  {id:"B1",type:"bus",stops:["7","15","8","10","3"],dailyPassengers:42000,buses:18,cap:70,supply:[12,8,10,4]},
+  {id:"B2",type:"bus",stops:["4","2","5","F6","F2"],dailyPassengers:38000,buses:15,cap:70,supply:[10,7,9,3]},
+  {id:"B3",type:"bus",stops:["13","14","4","F8"],dailyPassengers:22000,buses:10,cap:60,supply:[6,4,6,2]},
+  {id:"B4",type:"bus",stops:["1","F10","12","8"],dailyPassengers:28000,buses:12,cap:70,supply:[8,5,7,3]},
+  {id:"B5",type:"bus",stops:["F7","15","7"],dailyPassengers:18000,buses:8,cap:60,supply:[5,3,5,2]},
+];
+
+const PERIOD_IDX={morning:0,afternoon:1,evening:2,night:3};
+const nodeMap={};
+NODES.forEach(n=>nodeMap[n.id]=n);
+const adjacency={};
+NODES.forEach(n=>adjacency[n.id]=[]);
+const edgeMap={};
+EDGE_DATA.forEach(([f,t,dist,cap,fm,fa,fe,fn,ns,rs])=>{
+  const key=[f,t].sort().join('-');
+  const e={key,from:f,to:t,dist,cap,fm,fa,fe,fn,ns,rs};
+  edgeMap[key]=e;
+  adjacency[f].push({neighbor:t,edge:e});
+  adjacency[t].push({neighbor:f,edge:e});
+});
+function edgeKey(a,b){return[a,b].sort().join('-');}
+function getFlow(e,period){return[e.fm,e.fa,e.fe,e.fn][PERIOD_IDX[period]];}
+function getRatio(e,period){return getFlow(e,period)/e.cap;}
+function getWeight(e,period){
+  const ratio=getRatio(e,period);
+  let spd=e.ns;
+  if(ratio>0.9)spd=e.rs;
+  else if(ratio>0.7)spd=e.ns*0.7;
+  return(e.dist/spd)*60;
+}
+function getCongLevel(ratio){
+  if(ratio<0.5)return{lv:'low',col:'var(--green)'};
+  if(ratio<0.75)return{lv:'moderate',col:'var(--gold)'};
+  if(ratio<0.9)return{lv:'high',col:'var(--gold)'};
+  return{lv:'severe',col:'var(--red)'};
+}
+
+// ═══ PROJECTION ═══
+const PAD_W=48,PAD_H=44,VW=700,VH=560;
+const lons=NODES.map(n=>n.lon),lats=NODES.map(n=>n.lat);
+const minLon=Math.min(...lons),maxLon=Math.max(...lons);
+const minLat=Math.min(...lats),maxLat=Math.max(...lats);
+function proj(node){
+  return{
+    x:PAD_W+((node.lon-minLon)/(maxLon-minLon))*(VW-PAD_W*2),
+    y:(VH-PAD_H)-((node.lat-minLat)/(maxLat-minLat))*(VH-PAD_H*2)
+  };
+}
+const projCache={};
+NODES.forEach(n=>projCache[n.id]=proj(n));
+
+function svgEl(tag,attrs){
+  const el=document.createElementNS("http://www.w3.org/2000/svg",tag);
+  for(const[k,v]of Object.entries(attrs))el.setAttribute(k,v);
+  return el;
+}
+
+// ═══ BASE SVG ═══
+function buildBase(svgId,vw,vh){
+  const svg=document.getElementById(svgId);
+  svg.innerHTML="";
+  svg.setAttribute("viewBox",`0 0 ${vw||VW} ${vh||VH}`);
+  svg.appendChild(svgEl("rect",{x:0,y:0,width:vw||VW,height:vh||VH,fill:"#09090c"}));
+  const eg=svgEl("g",{id:`${svgId}-edges`});
+  EDGE_DATA.forEach(([f,t])=>{
+    const a=projCache[f],b=projCache[t];
+    if(!a||!b)return;
+    const ek=[f,t].sort().join('-');
+    eg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"rgba(255,255,255,0.06)","stroke-width":"1","data-key":ek}));
+  });
+  svg.appendChild(eg);
+  svg.appendChild(svgEl("g",{id:`${svgId}-xedges`}));
+  svg.appendChild(svgEl("g",{id:`${svgId}-path`}));
+  const ng=svgEl("g",{id:`${svgId}-nodes`});
+  NODES.forEach(n=>{
+    const p=projCache[n.id];
+    const g=svgEl("g",{transform:`translate(${p.x},${p.y})`,"data-id":n.id,style:"cursor:pointer"});
+    const isMed=n.type==="Medical";
+    g.appendChild(svgEl("circle",{r:8,fill:"#161b22",stroke:isMed?"var(--red)":"rgba(255,255,255,0.15)","stroke-width":isMed?"1.5":"0.5"}));
+    const lbl=svgEl("text",{x:0,y:"0.35em","text-anchor":"middle",fill:"rgba(255,255,255,0.65)","font-size":"6","font-family":"SF Mono,monospace","pointer-events":"none"});
+    lbl.textContent=n.id;
+    g.appendChild(lbl);
+    ng.appendChild(g);
+  });
+  svg.appendChild(ng);
+  return svg;
+}
+
+function highlightNode(svgId,nodeId,state,col){
+  const svg=document.getElementById(svgId);
+  const ng=svg.querySelector(`#${svgId}-nodes`);
+  if(!ng)return;
+  const g=ng.querySelector(`[data-id="${nodeId}"]`);
+  if(!g)return;
+  const c=g.querySelector("circle");
+  if(!c)return;
+  if(state==="visited"){c.setAttribute("fill",col+"33");c.setAttribute("stroke",col);c.setAttribute("stroke-width","1");}
+  else if(state==="path"){c.setAttribute("fill",col+"cc");c.setAttribute("stroke",col);c.setAttribute("stroke-width","2");}
+  else if(state==="start"){c.setAttribute("fill","var(--green)");c.setAttribute("stroke","var(--green)");c.setAttribute("stroke-width","2");}
+  else if(state==="end"){c.setAttribute("fill","var(--red)");c.setAttribute("stroke","var(--red)");c.setAttribute("stroke-width","2");}
+  else if(state==="hospital"){c.setAttribute("fill","#e5534bcc");c.setAttribute("stroke","var(--red)");c.setAttribute("stroke-width","2.5");c.setAttribute("r","11");}
+}
+
+function drawEdge(svgId,ek,col,width,group){
+  const pg=document.querySelector(`#${svgId}-${group||'path'}`);
+  if(!pg)return;
+  const e=edgeMap[ek];if(!e)return;
+  const a=projCache[e.from],b=projCache[e.to];
+  pg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col,"stroke-width":width||"2","stroke-linecap":"round","data-key":ek}));
+}
+
+function drawPath(svgId,path,col){
+  const pg=document.querySelector(`#${svgId}-path`);
+  if(!pg)return;
+  pg.innerHTML="";
+  for(let i=0;i<path.length-1;i++){
+    const ek=edgeKey(path[i],path[i+1]);
+    const e=edgeMap[ek];if(!e)continue;
+    const a=projCache[path[i]],b=projCache[path[i+1]];
+    if(!a||!b)continue;
+    pg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col,"stroke-width":"3","stroke-linecap":"round"}));
+  }
+  path.forEach(id=>highlightNode(svgId,id,"path",col));
+}
+
+// ═══ TAB SWITCHING ═══
+function switchTab(btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  const tab=btn.dataset.tab;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById(`panel-${tab}`).classList.add('active');
+  document.querySelectorAll('aside.sidebar').forEach(s=>s.style.display='none');
+  document.getElementById(`sb-${tab}`).style.display='flex';
+  if(tab==='network')loadNetwork();
+  else if(tab==='transit')runTransit();
+  else if(tab==='race'){buildBase('svgA',500,440);buildBase('svgB',500,440);}
+  else if(tab==='route'){buildBase('route-svg');populatePairSelects();}
+  else if(tab==='emergency'){buildBase('emrg-svg');populateEmrgSelect();}
+  else if(tab==='mst')buildBase('mst-svg');
+}
+
+// ═══ POPULATE SELECTS ═══
+function populateSelects(ids){
+  const sorted=[...NODES].sort((a,b)=>a.name.localeCompare(b.name));
+  ids.forEach(sid=>{
+    const sel=document.getElementById(sid);if(!sel)return;
+    sel.innerHTML=sorted.map(n=>`<option value="${n.id}">${n.id} · ${n.name}</option>`).join('');
+  });
+}
+populateSelects(['race-start','race-end']);
+document.getElementById('race-start').value='7';
+document.getElementById('race-end').value='F9';
+
+const ALGO_DESC={
+  dijkstra:"Standard shortest path via priority queue. Explores cheapest nodes first.",
+  astar:"Heuristic routing with Euclidean distance estimate. Faster for point-to-point.",
+  time_varying:"Departure-hour aware. Applies time-of-day congestion multiplier.",
+  alternate:"Dijkstra with road closure enforcement. Finds detour around blocked edge.",
+  least:"Minimizes congestion ratio instead of travel time. Prefers free-flow roads.",
+  bfs:"Unweighted breadth-first search. Finds fewest hops, ignores travel time.",
+  bellman:"Dynamic programming relaxation. Handles any weight; runs O(V·E) passes.",
+  greedy:"Greedy weight = congestion × distance + signal penalty at critical nodes.",
+  bidir:"Simultaneous forward+backward search. Meets in middle for faster termination."
+};
+
+function updateAlgoUI(){
+  const a=document.getElementById('algoA').value;
+  const b=document.getElementById('algoB').value;
+  const hasTv=a==='time_varying'||b==='time_varying';
+  const hasAlt=a==='alternate'||b==='alternate';
+  document.getElementById('tv-hour-row').style.display=hasTv?'flex':'none';
+  document.getElementById('alt-block-row').style.display=hasAlt?'flex':'none';
+  document.getElementById('algoA-desc').textContent=ALGO_DESC[a]||'';
+  document.getElementById('algoB-desc').textContent=ALGO_DESC[b]||'';
+}
+document.getElementById('algoA').addEventListener('change',updateAlgoUI);
+document.getElementById('algoB').addEventListener('change',updateAlgoUI);
+updateAlgoUI();
+
+function populatePairSelects(){
+  populateSelects(['r-start','r-end']);
+  document.getElementById('r-start').value='4';
+  document.getElementById('r-end').value='3';
+}
+
+function populateEmrgSelect(){
+  populateSelects(['emrg-origin']);
+  document.getElementById('emrg-origin').value='7';
+}
+
+// ═══ NETWORK PANEL ═══
+function loadNetwork(){
+  const period=document.getElementById('net-period').value;
+  const svg=buildBase('net-svg');
+
+  // Color edges by congestion
+  const eg=svg.querySelector('#net-svg-edges');
+  eg.innerHTML='';
+  EDGE_DATA.forEach(([f,t])=>{
+    const a=projCache[f],b=projCache[t];if(!a||!b)return;
+    const ek=[f,t].sort().join('-');
+    const e=edgeMap[ek];if(!e)return;
+    const ratio=getRatio(e,period);
+    const {col}=getCongLevel(ratio);
+    const lne=svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col,"stroke-width":"2","stroke-opacity":"0.7","data-key":ek});
+    lne.addEventListener('mouseenter',ev=>showTip(ev,`${nodeMap[f].name} → ${nodeMap[t].name}<br>Flow: ${getFlow(e,period)} / ${e.cap}<br>Ratio: ${(ratio*100).toFixed(0)}%`));
+    lne.addEventListener('mouseleave',hideTip);
+    eg.appendChild(lne);
+  });
+
+  // Node tooltips & critical rings
+  const ng=svg.querySelector('#net-svg-nodes');
+  NODES.forEach(n=>{
+    const g=ng.querySelector(`[data-id="${n.id}"]`);if(!g)return;
+    if(n.critical){
+      const c=g.querySelector('circle');
+      c.setAttribute('stroke','var(--red)');
+      c.setAttribute('stroke-width','1.5');
+      c.setAttribute('r','10');
+    }
+    g.addEventListener('mouseenter',ev=>showTip(ev,`<b>${n.name}</b><br>${n.type}${n.critical?' · Critical':''}`));
+    g.addEventListener('mouseleave',hideTip);
+  });
+
+  // Summary
+  document.getElementById('net-nodes').textContent=NODES.length;
+  document.getElementById('net-edges').textContent=EDGE_DATA.length;
+  document.getElementById('net-crit').textContent=NODES.filter(n=>n.critical).length;
+  document.getElementById('net-routes').textContent=TRANSIT_ROUTES.length;
+
+  // Hotspots
+  const hotspots=[...EDGE_DATA].map(([f,t])=>{
+    const ek=[f,t].sort().join('-');
+    const e=edgeMap[ek];
+    const ratio=getRatio(e,period);
+    return{from:nodeMap[f].name,to:nodeMap[t].name,ratio,level:getCongLevel(ratio).lv};
+  }).sort((a,b)=>b.ratio-a.ratio).slice(0,6);
+  const hl=document.getElementById('hotspot-list');
+  hl.innerHTML=hotspots.map(h=>`
+    <div class="hotspot ${h.level}">
+      <div class="hotspot-name">${h.from} → ${h.to}</div>
+      <div class="hotspot-ratio">${(h.ratio*100).toFixed(0)}% · ${h.level}</div>
+    </div>`).join('');
+}
+
+// ═══ TOOLTIP ═══
+function showTip(ev,html){
+  const tip=document.getElementById('tip');
+  tip.innerHTML=html;tip.style.display='block';
+  tip.style.left=(ev.clientX+12)+'px';tip.style.top=(ev.clientY-8)+'px';
+}
+function hideTip(){document.getElementById('tip').style.display='none';}
+document.addEventListener('mousemove',ev=>{
+  const tip=document.getElementById('tip');
+  if(tip.style.display==='block'){tip.style.left=(ev.clientX+12)+'px';tip.style.top=(ev.clientY-8)+'px';}
+});
+
+// ═══ ALGORITHMS ═══
+function euclidDist(a,b){
+  const na=nodeMap[a],nb=nodeMap[b];
+  const dlat=(na.lat-nb.lat)*111;
+  const dlon=(na.lon-nb.lon)*111*Math.cos(na.lat*Math.PI/180);
+  return Math.sqrt(dlat*dlat+dlon*dlon)/60*60;
+}
+function runDijkstra(start,end,period){
+  const dist={},prev={},visited=new Set(),steps=[];
+  NODES.forEach(n=>dist[n.id]=Infinity);dist[start]=0;
+  const heap=[{d:0,id:start}];
+  let nodesVisited=0,edgesConsidered=0;
+  while(heap.length){
+    heap.sort((a,b)=>a.d-b.d);
+    const{d,id}=heap.shift();
+    if(visited.has(id))continue;
+    visited.add(id);nodesVisited++;
+    steps.push({type:'visit',node:id,nodesVisited,edgesConsidered});
+    if(id===end)break;
+    for(const{neighbor,edge}of adjacency[id]||[]){
+      edgesConsidered++;if(visited.has(neighbor))continue;
+      const w=getWeight(edge,period);
+      if(dist[id]+w<dist[neighbor]){
+        dist[neighbor]=dist[id]+w;prev[neighbor]=id;
+        heap.push({d:dist[neighbor],id:neighbor});
+        steps.push({type:'relax',node:neighbor,edge:edge.key,nodesVisited,edgesConsidered});
+      }
+    }
+  }
+  const path=[];let cur=end;
+  while(cur!==undefined){path.unshift(cur);cur=prev[cur];}
+  if(path[0]!==start)path.length=0;
+  return{path,totalTime:dist[end]===Infinity?-1:dist[end],nodesVisited,edgesConsidered,steps};
+}
+function runAstar(start,end,period){
+  const g={},f={},prev={},visited=new Set(),steps=[];
+  NODES.forEach(n=>{g[n.id]=Infinity;f[n.id]=Infinity;});
+  g[start]=0;f[start]=euclidDist(start,end);
+  const heap=[{f:f[start],id:start}];
+  let nodesVisited=0,edgesConsidered=0;
+  while(heap.length){
+    heap.sort((a,b)=>a.f-b.f);
+    const{id}=heap.shift();
+    if(visited.has(id))continue;
+    visited.add(id);nodesVisited++;
+    steps.push({type:'visit',node:id,nodesVisited,edgesConsidered});
+    if(id===end)break;
+    for(const{neighbor,edge}of adjacency[id]||[]){
+      edgesConsidered++;if(visited.has(neighbor))continue;
+      const w=getWeight(edge,period);
+      const tg=g[id]+w;
+      if(tg<g[neighbor]){
+        g[neighbor]=tg;f[neighbor]=tg+euclidDist(neighbor,end);prev[neighbor]=id;
+        heap.push({f:f[neighbor],id:neighbor});
+        steps.push({type:'relax',node:neighbor,edge:edge.key,nodesVisited,edgesConsidered});
+      }
+    }
+  }
+  const path=[];let cur=end;
+  while(cur!==undefined){path.unshift(cur);cur=prev[cur];}
+  if(path[0]!==start)path.length=0;
+  return{path,totalTime:g[end]===Infinity?-1:g[end],nodesVisited,edgesConsidered,steps};
+}
+function runLeastCongested(start,end,period){
+  const dist={},prev={},visited=new Set(),steps=[];
+  NODES.forEach(n=>dist[n.id]=Infinity);dist[start]=0;
+  const heap=[{d:0,id:start}];
+  let nodesVisited=0,edgesConsidered=0;
+  while(heap.length){
+    heap.sort((a,b)=>a.d-b.d);
+    const{d,id}=heap.shift();
+    if(visited.has(id))continue;
+    visited.add(id);nodesVisited++;
+    steps.push({type:'visit',node:id,nodesVisited,edgesConsidered});
+    if(id===end)break;
+    for(const{neighbor,edge}of adjacency[id]||[]){
+      edgesConsidered++;if(visited.has(neighbor))continue;
+      const w=getRatio(edge,period);
+      if(dist[id]+w<dist[neighbor]){
+        dist[neighbor]=dist[id]+w;prev[neighbor]=id;
+        heap.push({d:dist[neighbor],id:neighbor});
+        steps.push({type:'relax',node:neighbor,edge:edge.key,nodesVisited,edgesConsidered});
+      }
+    }
+  }
+  const path=[];let cur=end;
+  while(cur!==undefined){path.unshift(cur);cur=prev[cur];}
+  if(path[0]!==start)path.length=0;
+  let totalTime=0;
+  for(let i=0;i<path.length-1;i++){const ek=edgeKey(path[i],path[i+1]);if(edgeMap[ek])totalTime+=getWeight(edgeMap[ek],period);}
+  return{path,totalTime:path.length<2?-1:totalTime,nodesVisited,edgesConsidered,steps};
+}
+function runBFS(start,end,period){
+  const visited=new Set(),prev={},steps=[];
+  visited.add(start);const queue=[start];
+  let nodesVisited=0,edgesConsidered=0;
+  while(queue.length){
+    const id=queue.shift();nodesVisited++;
+    steps.push({type:'visit',node:id,nodesVisited,edgesConsidered});
+    if(id===end)break;
+    for(const{neighbor,edge}of adjacency[id]||[]){
+      edgesConsidered++;
+      if(!visited.has(neighbor)){
+        visited.add(neighbor);prev[neighbor]=id;queue.push(neighbor);
+        steps.push({type:'relax',node:neighbor,edge:edge.key,nodesVisited,edgesConsidered});
+      }
+    }
+  }
+  const path=[];let cur=end;
+  while(cur!==undefined){path.unshift(cur);cur=prev[cur];}
+  if(path[0]!==start)path.length=0;
+  let totalTime=0;
+  for(let i=0;i<path.length-1;i++){const ek=edgeKey(path[i],path[i+1]);if(edgeMap[ek])totalTime+=getWeight(edgeMap[ek],period);}
+  return{path,totalTime:path.length<2?-1:totalTime,nodesVisited,edgesConsidered,steps};
+}
+
+// ── Time-Varying Dijkstra (departure hour shifts congestion weights) ──
+function runTimeVarying(start,end,period,hour){
+  const h=parseInt(hour||12);
+  // time-of-day multiplier: peaks at 8am and 6pm
+  function tvMult(h){
+    const peaks=[{h:8,m:1.6},{h:18,m:1.5},{h:9,m:1.4},{h:17,m:1.4}];
+    let best=1.0;
+    peaks.forEach(p=>{const d=Math.abs(h-p.h);if(d<=2)best=Math.max(best,p.m-(d*0.15));});
+    return best;
+  }
+  const mult=tvMult(h);
+  const dist={},prev={},visited=new Set(),steps=[];
+  NODES.forEach(n=>dist[n.id]=Infinity);dist[start]=0;
+  const heap=[{d:0,id:start}];
+  let nodesVisited=0,edgesConsidered=0;
+  while(heap.length){
+    heap.sort((a,b)=>a.d-b.d);
+    const{d,id}=heap.shift();
+    if(visited.has(id))continue;
+    visited.add(id);nodesVisited++;
+    steps.push({type:'visit',node:id,nodesVisited,edgesConsidered});
+    if(id===end)break;
+    for(const{neighbor,edge}of adjacency[id]||[]){
+      edgesConsidered++;if(visited.has(neighbor))continue;
+      const w=getWeight(edge,period)*mult;
+      if(dist[id]+w<dist[neighbor]){
+        dist[neighbor]=dist[id]+w;prev[neighbor]=id;
+        heap.push({d:dist[neighbor],id:neighbor});
+        steps.push({type:'relax',node:neighbor,edge:edge.key,nodesVisited,edgesConsidered});
+      }
+    }
+  }
+  const path=[];let cur=end;
+  while(cur!==undefined){path.unshift(cur);cur=prev[cur];}
+  if(path[0]!==start)path.length=0;
+  return{path,totalTime:dist[end]===Infinity?-1:dist[end],nodesVisited,edgesConsidered,steps};
+}
+
+// ── Alternate Route (Dijkstra with blocked edges) ──
+function runAlternate(start,end,period,blockedEdge){
+  const blocked=blockedEdge||'';
+  const dist={},prev={},visited=new Set(),steps=[];
+  NODES.forEach(n=>dist[n.id]=Infinity);dist[start]=0;
+  const heap=[{d:0,id:start}];
+  let nodesVisited=0,edgesConsidered=0;
+  while(heap.length){
+    heap.sort((a,b)=>a.d-b.d);
+    const{d,id}=heap.shift();
+    if(visited.has(id))continue;
+    visited.add(id);nodesVisited++;
+    steps.push({type:'visit',node:id,nodesVisited,edgesConsidered});
+    if(id===end)break;
+    for(const{neighbor,edge}of adjacency[id]||[]){
+      edgesConsidered++;
+      if(visited.has(neighbor))continue;
+      if(blocked&&edge.key===blocked)continue; // road closure
+      const w=getWeight(edge,period)*1.05; // slight detour penalty
+      if(dist[id]+w<dist[neighbor]){
+        dist[neighbor]=dist[id]+w;prev[neighbor]=id;
+        heap.push({d:dist[neighbor],id:neighbor});
+        steps.push({type:'relax',node:neighbor,edge:edge.key,nodesVisited,edgesConsidered});
+      }
+    }
+  }
+  const path=[];let cur=end;
+  while(cur!==undefined){path.unshift(cur);cur=prev[cur];}
+  if(path[0]!==start)path.length=0;
+  return{path,totalTime:dist[end]===Infinity?-1:dist[end],nodesVisited,edgesConsidered,steps};
+}
+
+// ── Bellman-Ford / DP (full relaxation passes) ──
+function runBellmanFord(start,end,period){
+  const dist={},prev={},steps=[];
+  NODES.forEach(n=>dist[n.id]=Infinity);dist[start]=0;
+  let nodesVisited=0,edgesConsidered=0;
+  const N=NODES.length;
+  for(let pass=0;pass<N-1;pass++){
+    let updated=false;
+    for(const[f,t] of EDGE_DATA){
+      const ek=edgeKey(f,t);const edge=edgeMap[ek];if(!edge)continue;
+      const w=getWeight(edge,period);
+      edgesConsidered++;
+      // forward
+      if(dist[f]!==Infinity&&dist[f]+w<dist[t]){
+        dist[t]=dist[f]+w;prev[t]=f;updated=true;
+        steps.push({type:'relax',node:t,edge:ek,nodesVisited,edgesConsidered});
+      }
+      // backward
+      if(dist[t]!==Infinity&&dist[t]+w<dist[f]){
+        dist[f]=dist[t]+w;prev[f]=t;updated=true;
+        steps.push({type:'relax',node:f,edge:ek,nodesVisited,edgesConsidered});
+      }
+    }
+    nodesVisited=NODES.filter(n=>dist[n.id]!==Infinity).length;
+    steps.push({type:'visit',node:start,nodesVisited,edgesConsidered});
+    if(!updated)break;
+  }
+  const path=[];let cur=end;
+  while(cur!==undefined){path.unshift(cur);cur=prev[cur];}
+  if(path[0]!==start)path.length=0;
+  return{path,totalTime:dist[end]===Infinity?-1:dist[end],nodesVisited,edgesConsidered,steps};
+}
+
+// ── Greedy Signal-Aware (weight = congestion ratio + signal penalty) ──
+function runGreedy(start,end,period){
+  const dist={},prev={},visited=new Set(),steps=[];
+  NODES.forEach(n=>dist[n.id]=Infinity);dist[start]=0;
+  const heap=[{d:0,id:start}];
+  let nodesVisited=0,edgesConsidered=0;
+  while(heap.length){
+    heap.sort((a,b)=>a.d-b.d);
+    const{d,id}=heap.shift();
+    if(visited.has(id))continue;
+    visited.add(id);nodesVisited++;
+    steps.push({type:'visit',node:id,nodesVisited,edgesConsidered});
+    if(id===end)break;
+    for(const{neighbor,edge}of adjacency[id]||[]){
+      edgesConsidered++;if(visited.has(neighbor))continue;
+      // greedy weight: congestion ratio * dist + signal intersection penalty
+      const ratio=getRatio(edge,period);
+      const signalPenalty=(nodeMap[neighbor]?.critical?2.5:1.0);
+      const w=(ratio*edge.dist*0.5+getWeight(edge,period))*signalPenalty;
+      if(dist[id]+w<dist[neighbor]){
+        dist[neighbor]=dist[id]+w;prev[neighbor]=id;
+        heap.push({d:dist[neighbor],id:neighbor});
+        steps.push({type:'relax',node:neighbor,edge:edge.key,nodesVisited,edgesConsidered});
+      }
+    }
+  }
+  const path=[];let cur=end;
+  while(cur!==undefined){path.unshift(cur);cur=prev[cur];}
+  if(path[0]!==start)path.length=0;
+  let totalTime=0;
+  for(let i=0;i<path.length-1;i++){const ek=edgeKey(path[i],path[i+1]);if(edgeMap[ek])totalTime+=getWeight(edgeMap[ek],period);}
+  return{path,totalTime:path.length<2?-1:totalTime,nodesVisited,edgesConsidered,steps};
+}
+
+// ── Bidirectional Dijkstra (forward + backward simultaneous) ──
+function runBidirectional(start,end,period){
+  const distF={},distB={},prevF={},prevB={};
+  const visitedF=new Set(),visitedB=new Set(),steps=[];
+  NODES.forEach(n=>{distF[n.id]=Infinity;distB[n.id]=Infinity;});
+  distF[start]=0;distB[end]=0;
+  const heapF=[{d:0,id:start}],heapB=[{d:0,id:end}];
+  let nodesVisited=0,edgesConsidered=0,bestPath=null,bestCost=Infinity;
+
+  function relaxF(id){
+    for(const{neighbor,edge}of adjacency[id]||[]){
+      edgesConsidered++;if(visitedF.has(neighbor))continue;
+      const w=getWeight(edge,period);
+      if(distF[id]+w<distF[neighbor]){
+        distF[neighbor]=distF[id]+w;prevF[neighbor]=id;
+        heapF.push({d:distF[neighbor],id:neighbor});
+        steps.push({type:'relax',node:neighbor,edge:edge.key,nodesVisited,edgesConsidered});
+        const total=distF[neighbor]+(distB[neighbor]||Infinity);
+        if(total<bestCost){bestCost=total;}
+      }
+    }
+  }
+  function relaxB(id){
+    for(const{neighbor,edge}of adjacency[id]||[]){
+      edgesConsidered++;if(visitedB.has(neighbor))continue;
+      const w=getWeight(edge,period);
+      if(distB[id]+w<distB[neighbor]){
+        distB[neighbor]=distB[id]+w;prevB[neighbor]=id;
+        heapB.push({d:distB[neighbor],id:neighbor});
+        steps.push({type:'relax',node:neighbor,edge:edge.key,nodesVisited,edgesConsidered});
+        const total=(distF[neighbor]||Infinity)+distB[neighbor];
+        if(total<bestCost){bestCost=total;}
+      }
+    }
+  }
+
+  while(heapF.length||heapB.length){
+    // Forward step
+    if(heapF.length){
+      heapF.sort((a,b)=>a.d-b.d);
+      const{d,id}=heapF.shift();
+      if(!visitedF.has(id)){
+        visitedF.add(id);nodesVisited++;
+        steps.push({type:'visit',node:id,nodesVisited,edgesConsidered});
+        relaxF(id);
+      }
+    }
+    // Backward step
+    if(heapB.length){
+      heapB.sort((a,b)=>a.d-b.d);
+      const{d,id}=heapB.shift();
+      if(!visitedB.has(id)){
+        visitedB.add(id);nodesVisited++;
+        steps.push({type:'visit',node:id,nodesVisited,edgesConsidered});
+        relaxB(id);
+      }
+    }
+    // Termination: both frontiers processed nodes that together exceed bestCost
+    const muF=heapF.length?heapF.reduce((m,x)=>x.d<m?x.d:m,Infinity):Infinity;
+    const muB=heapB.length?heapB.reduce((m,x)=>x.d<m?x.d:m,Infinity):Infinity;
+    if(muF+muB>=bestCost)break;
+  }
+
+  // Find meeting node with lowest combined distance
+  let meetNode=null,meetCost=Infinity;
+  NODES.forEach(n=>{
+    const c=(distF[n.id]||Infinity)+(distB[n.id]||Infinity);
+    if(c<meetCost){meetCost=c;meetNode=n.id;}
+  });
+
+  if(meetNode===null||meetCost===Infinity)return{path:[],totalTime:-1,nodesVisited,edgesConsidered,steps};
+
+  // Reconstruct: forward path to meetNode
+  const pathF=[];let cur=meetNode;
+  while(cur!==undefined){pathF.unshift(cur);cur=prevF[cur];}
+  // Backward path from meetNode to end
+  const pathB=[];cur=meetNode;
+  while(cur!==undefined){if(cur!==meetNode)pathB.push(cur);cur=prevB[cur];}
+  // Actually rebuild backward correctly
+  const pathB2=[];cur=prevB[meetNode];
+  while(cur!==undefined){pathB2.push(cur);cur=prevB[cur];}
+  const path=[...pathF,...pathB2];
+
+  if(path[0]!==start)path.length=0;
+  return{path,totalTime:meetCost===Infinity?-1:meetCost,nodesVisited,edgesConsidered,steps};
+}
+
+const ALGO_FNS={
+  dijkstra:runDijkstra,
+  astar:runAstar,
+  time_varying:runTimeVarying,
+  alternate:runAlternate,
+  least:runLeastCongested,
+  bfs:runBFS,
+  bellman:runBellmanFord,
+  greedy:runGreedy,
+  bidir:runBidirectional
+};
+const ALGO_LABELS={
+  dijkstra:"DIJKSTRA",
+  astar:"A* SEARCH",
+  time_varying:"TIME-VARYING",
+  alternate:"ALT ROUTE",
+  least:"LEAST CONG.",
+  bfs:"BFS",
+  bellman:"BELLMAN-FORD",
+  greedy:"GREEDY",
+  bidir:"BIDIR. DIJKSTRA"
+};
+
+// ═══ ROUTE PANEL ═══
+function runRoute(){
+  const start=document.getElementById('r-start').value;
+  const end=document.getElementById('r-end').value;
+  const period=document.getElementById('r-period').value;
+  const algo=document.getElementById('r-algo').value;
+  const fn=ALGO_FNS[algo]||runAstar;
+  const res=fn(start,end,period);
+  buildBase('route-svg');
+  // Color all edges by congestion first
+  const eg=document.querySelector('#route-svg-edges');
+  eg.innerHTML='';
+  EDGE_DATA.forEach(([f,t])=>{
+    const a=projCache[f],b=projCache[t];if(!a||!b)return;
+    const ek=[f,t].sort().join('-');
+    const e=edgeMap[ek];if(!e)return;
+    const {col}=getCongLevel(getRatio(e,period));
+    eg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col,"stroke-width":"1.2","stroke-opacity":"0.4","data-key":ek}));
+  });
+  if(res.path.length>1){
+    drawPath('route-svg',res.path,'var(--blue)');
+    document.getElementById('r-time').textContent=res.totalTime>=0?res.totalTime.toFixed(1):'N/A';
+    document.getElementById('r-hops').textContent=res.path.length;
+    document.getElementById('r-nodes').textContent=res.nodesVisited;
+    document.getElementById('r-edges-c').textContent=res.edgesConsidered;
+    const pb=document.getElementById('route-path-box');
+    pb.style.display='block';
+    pb.textContent=res.path.map(id=>nodeMap[id]?.name||id).join(' → ');
+  }
+  highlightNode('route-svg',start,'start','var(--green)');
+  highlightNode('route-svg',end,'end','var(--red)');
+}
+
+// ═══ RACE PANEL ═══
+let animFrame=null;
+function stopAnim(){if(animFrame){cancelAnimationFrame(animFrame);animFrame=null;}}
+function addLog(logId,msg){
+  const el=document.getElementById(logId);if(!el)return;
+  const div=document.createElement("div");div.className="log-entry";div.innerHTML=msg;
+  el.appendChild(div);el.scrollTop=el.scrollHeight;
+}
+function addXEdge(svgId,ek,col){
+  const eg=document.querySelector(`#${svgId}-xedges`);if(!eg)return;
+  if(eg.querySelector(`[data-key="${ek}"]`))return;
+  const e=edgeMap[ek];if(!e)return;
+  const a=projCache[e.from],b=projCache[e.to];
+  eg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col+"55","stroke-width":"1.5","data-key":ek}));
+}
+
+function runRace(){
+  stopAnim();
+  const start=document.getElementById('race-start').value;
+  const end=document.getElementById('race-end').value;
+  const period=document.getElementById('race-period').value;
+  const algoAKey=document.getElementById('algoA').value;
+  const algoBKey=document.getElementById('algoB').value;
+  const speed=parseInt(document.getElementById('speedSlider').value);
+  const delay=Math.round(500/(speed*speed)+5);
+  ['A','B'].forEach(s=>{
+    document.getElementById(`statTime${s}`).textContent='—';
+    document.getElementById(`statNodes${s}`).textContent='—';
+    document.getElementById(`statEdges${s}`).textContent='—';
+    document.getElementById(`progA`).style.width='0%';
+    document.getElementById(`progB`).style.width='0%';
+    document.getElementById(`log${s}`).innerHTML='';
+  });
+  document.getElementById('winnerBadge').textContent='Racing…';
+  document.getElementById('winnerBadge').style.color='var(--muted)';
+  document.getElementById('badgeA').textContent=ALGO_LABELS[algoAKey]||algoAKey.toUpperCase();
+  document.getElementById('badgeB').textContent=ALGO_LABELS[algoBKey]||algoBKey.toUpperCase();
+  document.getElementById('logTitleA').textContent=ALGO_LABELS[algoAKey]||algoAKey.toUpperCase();
+  document.getElementById('logTitleB').textContent=ALGO_LABELS[algoBKey]||algoBKey.toUpperCase();
+
+  // Build 500×440 base SVGs
+  function buildRaceSVG(svgId){
+    const svg=document.getElementById(svgId);
+    svg.innerHTML="";svg.setAttribute("viewBox","0 0 500 440");
+    svg.appendChild(svgEl("rect",{x:0,y:0,width:500,height:440,fill:"#09090c"}));
+    const W=500,H=440,PD=36;
+    const lons2=NODES.map(n=>n.lon),lats2=NODES.map(n=>n.lat);
+    const mnLon=Math.min(...lons2),mxLon=Math.max(...lons2);
+    const mnLat=Math.min(...lats2),mxLat=Math.max(...lats2);
+    const pc={};
+    NODES.forEach(n=>{pc[n.id]={x:PD+((n.lon-mnLon)/(mxLon-mnLon))*(W-PD*2),y:(H-PD)-((n.lat-mnLat)/(mxLat-mnLat))*(H-PD*2)};});
+    const eg=svgEl("g",{id:`${svgId}-edges`});
+    EDGE_DATA.forEach(([f,t])=>{
+      const a=pc[f],b=pc[t];if(!a||!b)return;
+      eg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"rgba(255,255,255,0.06)","stroke-width":"1","data-key":[f,t].sort().join('-')}));
+    });
+    svg.appendChild(eg);
+    svg.appendChild(svgEl("g",{id:`${svgId}-xedges`}));
+    svg.appendChild(svgEl("g",{id:`${svgId}-path`}));
+    const ng=svgEl("g",{id:`${svgId}-nodes`});
+    NODES.forEach(n=>{
+      const p=pc[n.id];
+      const g=svgEl("g",{transform:`translate(${p.x},${p.y})`,"data-id":n.id});
+      g.appendChild(svgEl("circle",{r:7,fill:"#161b22",stroke:"rgba(255,255,255,0.12)","stroke-width":"0.5"}));
+      const lbl=svgEl("text",{x:0,y:"0.35em","text-anchor":"middle",fill:"rgba(255,255,255,0.55)","font-size":"5.5","font-family":"SF Mono,monospace","pointer-events":"none"});
+      lbl.textContent=n.id;g.appendChild(lbl);ng.appendChild(g);
+    });
+    svg.appendChild(ng);
+    return{pc};
+  }
+
+  const{pc:pcA}=buildRaceSVG('svgA');
+  const{pc:pcB}=buildRaceSVG('svgB');
+
+  function hlRace(svgId,pc2,nodeId,state,col){
+    const svg=document.getElementById(svgId);
+    const ng=svg.querySelector(`#${svgId}-nodes`);if(!ng)return;
+    const g=ng.querySelector(`[data-id="${nodeId}"]`);if(!g)return;
+    const c=g.querySelector('circle');if(!c)return;
+    if(state==='visited'){c.setAttribute('fill',col+'33');c.setAttribute('stroke',col);c.setAttribute('stroke-width','1');}
+    else if(state==='path'){c.setAttribute('fill',col+'cc');c.setAttribute('stroke',col);c.setAttribute('stroke-width','2');}
+    else if(state==='start'){c.setAttribute('fill','#2ec27e');c.setAttribute('stroke','#2ec27e');c.setAttribute('stroke-width','2');}
+    else if(state==='end'){c.setAttribute('fill','#e5534b');c.setAttribute('stroke','#e5534b');c.setAttribute('stroke-width','2');}
+  }
+  function addXEdgeRace(svgId,pc2,ek,col){
+    const eg=document.querySelector(`#${svgId}-xedges`);if(!eg)return;
+    if(eg.querySelector(`[data-key="${ek}"]`))return;
+    const e=edgeMap[ek];if(!e)return;
+    const a=pc2[e.from],b=pc2[e.to];if(!a||!b)return;
+    eg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col+"55","stroke-width":"1.5","data-key":ek}));
+  }
+  function drawFinalRace(svgId,pc2,path,col){
+    const pg=document.querySelector(`#${svgId}-path`);if(!pg)return;pg.innerHTML='';
+    for(let i=0;i<path.length-1;i++){
+      const ek=edgeKey(path[i],path[i+1]);const e=edgeMap[ek];if(!e)continue;
+      const a=pc2[path[i]],b=pc2[path[i+1]];if(!a||!b)continue;
+      pg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col,"stroke-width":"3","stroke-linecap":"round"}));
+    }
+    path.forEach(id=>hlRace(svgId,pc2,id,'path',col));
+  }
+
+  hlRace('svgA',pcA,start,'start','#2ec27e');hlRace('svgA',pcA,end,'end','#e5534b');
+  hlRace('svgB',pcB,start,'start','#2ec27e');hlRace('svgB',pcB,end,'end','#e5534b');
+
+  const fnA=ALGO_FNS[algoAKey]||runDijkstra;
+  const fnB=ALGO_FNS[algoBKey]||runAstar;
+  const tvHour=document.getElementById('tv-hour').value;
+  const altBlocked=document.getElementById('alt-blocked').value;
+  function callAlgo(fn,key){
+    if(key==='time_varying')return fn(start,end,period,tvHour);
+    if(key==='alternate')return fn(start,end,period,altBlocked);
+    return fn(start,end,period);
+  }
+  const resultA=callAlgo(fnA,algoAKey);
+  const resultB=callAlgo(fnB,algoBKey);
+  const stepsA=resultA.steps,stepsB=resultB.steps;
+
+  document.getElementById('runBtn').disabled=true;
+  let ia=0,ib=0,finishedA=false,finishedB=false,firstFinish=null;
+
+  function tick(){
+    const batch=Math.max(1,Math.floor(speed/2));
+    for(let bi=0;bi<batch;bi++){
+      if(ia<stepsA.length){
+        const step=stepsA[ia++];
+        if(step.type==='visit'){
+          if(step.node!==start&&step.node!==end)hlRace('svgA',pcA,step.node,'visited','#3b8aed');
+          const verb=algoAKey==='bfs'?'Dequeue':algoAKey==='bellman'?'Relax':algoAKey==='bidir'?'Fwd visit':'Visit';
+          if(bi===0&&ia%4===0)addLog('logA',`${verb} <span>${nodeMap[step.node]?.name||step.node}</span>`);
+        }else if(step.type==='relax')addXEdgeRace('svgA',pcA,step.edge,'#3b8aed');
+        document.getElementById('progA').style.width=Math.round(ia/stepsA.length*100)+'%';
+      }else if(!finishedA){
+        finishedA=true;if(!firstFinish)firstFinish='A';
+        drawFinalRace('svgA',pcA,resultA.path,'#3b8aed');
+        hlRace('svgA',pcA,start,'start','#2ec27e');hlRace('svgA',pcA,end,'end','#e5534b');
+        document.getElementById('progA').style.width='100%';
+        document.getElementById('statTimeA').textContent=resultA.totalTime>=0?resultA.totalTime.toFixed(1):'N/A';
+        document.getElementById('statNodesA').textContent=resultA.nodesVisited;
+        document.getElementById('statEdgesA').textContent=resultA.edgesConsidered;
+        addLog('logA',`<span>Done!</span> ${resultA.path.length} hops`);
+      }
+      if(ib<stepsB.length){
+        const step=stepsB[ib++];
+        if(step.type==='visit'){
+          if(step.node!==start&&step.node!==end)hlRace('svgB',pcB,step.node,'visited','#f0a830');
+          const verb=algoBKey==='bfs'?'Dequeue':algoBKey==='bellman'?'Relax':algoBKey==='bidir'?'Bwd visit':'Visit';
+          if(bi===0&&ib%4===0)addLog('logB',`${verb} <span>${nodeMap[step.node]?.name||step.node}</span>`);
+        }else if(step.type==='relax')addXEdgeRace('svgB',pcB,step.edge,'#f0a830');
+        document.getElementById('progB').style.width=Math.round(ib/stepsB.length*100)+'%';
+      }else if(!finishedB){
+        finishedB=true;if(!firstFinish)firstFinish='B';
+        drawFinalRace('svgB',pcB,resultB.path,'#f0a830');
+        hlRace('svgB',pcB,start,'start','#2ec27e');hlRace('svgB',pcB,end,'end','#e5534b');
+        document.getElementById('progB').style.width='100%';
+        document.getElementById('statTimeB').textContent=resultB.totalTime>=0?resultB.totalTime.toFixed(1):'N/A';
+        document.getElementById('statNodesB').textContent=resultB.nodesVisited;
+        document.getElementById('statEdgesB').textContent=resultB.edgesConsidered;
+        addLog('logB',`<span>Done!</span> ${resultB.path.length} hops`);
+      }
+    }
+    if(finishedA&&finishedB){
+      document.getElementById('runBtn').disabled=false;
+      const ta=resultA.totalTime,tb=resultB.totalTime;
+      let msg;
+      if(ta<0&&tb<0)msg='Both: No path found';
+      else if(ta<0)msg=`🏆 ${ALGO_LABELS[algoBKey]} wins — found path, other did not`;
+      else if(tb<0)msg=`🏆 ${ALGO_LABELS[algoAKey]} wins — found path, other did not`;
+      else{
+        const faster=ta<tb?'A':'B';
+        const fName=faster==='A'?ALGO_LABELS[algoAKey]:ALGO_LABELS[algoBKey];
+        const diff=Math.abs(ta-tb).toFixed(1);
+        const nodeDiff=Math.abs(resultA.nodesVisited-resultB.nodesVisited);
+        msg=`🏆 ${fName} — ${diff} min faster · ${nodeDiff} node diff`;
+      }
+      document.getElementById('winnerBadge').textContent=msg;
+      document.getElementById('winnerBadge').style.color='var(--txt)';
+      return;
+    }
+    setTimeout(()=>{animFrame=requestAnimationFrame(tick);},delay);
+  }
+  animFrame=requestAnimationFrame(tick);
+}
+
+// ═══ EMERGENCY PANEL ═══
+function runEmergency(){
+  const origin=document.getElementById('emrg-origin').value;
+  const period=document.getElementById('emrg-period').value;
+  const hospitals=NODES.filter(n=>n.type==='Medical');
+  let best=null,bestTime=Infinity,bestResult=null;
+  hospitals.forEach(h=>{
+    const res=runAstar(origin,h.id,period);
+    if(res.totalTime>=0&&res.totalTime<bestTime){bestTime=res.totalTime;best=h;bestResult=res;}
+  });
+  if(!best){alert('No hospital reachable');return;}
+
+  buildBase('emrg-svg');
+  // Tint edges
+  const eg=document.querySelector('#emrg-svg-edges');eg.innerHTML='';
+  EDGE_DATA.forEach(([f,t])=>{
+    const a=projCache[f],b=projCache[t];if(!a||!b)return;
+    const ek=[f,t].sort().join('-');const e=edgeMap[ek];if(!e)return;
+    eg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"rgba(255,255,255,0.05)","stroke-width":"1"}));
+  });
+  drawPath('emrg-svg',bestResult.path,'var(--red)');
+  highlightNode('emrg-svg',origin,'start','var(--green)');
+  highlightNode('emrg-svg',best.id,'hospital','var(--red)');
+
+  // Simulate preemption: assume each intersection on path saves 0.3–1.2 min
+  const signalSavings=bestResult.path.slice(1,-1).map((id,i)=>({
+    id,name:nodeMap[id]?.name||id,
+    normal:+(0.8+Math.random()*0.8).toFixed(1),
+    preempted:+(0.1+Math.random()*0.2).toFixed(1)
+  }));
+  const totalSaved=signalSavings.reduce((s,sg)=>s+(sg.normal-sg.preempted),0);
+  const withoutPreempt=bestTime+totalSaved;
+  const improvement=((totalSaved/withoutPreempt)*100).toFixed(1);
+
+  document.getElementById('emrg-hospital').textContent=best.name;
+  document.getElementById('emrg-travel').textContent=bestTime.toFixed(1);
+  document.getElementById('emrg-without').textContent=withoutPreempt.toFixed(1);
+  document.getElementById('emrg-with').textContent=bestTime.toFixed(1);
+  document.getElementById('emrg-saved').textContent=totalSaved.toFixed(1);
+  document.getElementById('emrg-pct').textContent=improvement;
+  const sl=document.getElementById('signal-list');
+  sl.innerHTML=signalSavings.map(sg=>`
+    <div class="signal-row">
+      <span>${sg.name}</span>
+      <span><span style="color:var(--red)">${sg.normal}</span> → <span style="color:var(--green)">${sg.preempted}</span> min</span>
+    </div>`).join('');
+  const er=document.getElementById('emrg-result');
+  er.style.display='flex';er.style.flexDirection='column';
+  document.getElementById('emrg-badge').style.display='inline-flex';
+}
+
+// ═══ MST (KRUSKAL) ═══
+function runMST(){
+  const mode=document.getElementById('mst-mode').value;
+  const inclPotential=document.getElementById('mst-potential').value==='true';
+
+  const edges=[...EDGE_DATA.map(([f,t,dist,cap,fm,fa,fe,fn,ns,rs])=>{
+    const key=[f,t].sort().join('-');
+    const cost=dist*0.8+(1-cap/4000)*50;
+    return{key,from:f,to:t,dist,cost,weight:mode==='cost'?cost:dist,potential:false};
+  })];
+
+  if(inclPotential){
+    const potentials=[["13","4",45,4000,120,80],["14","13",35.5,3800,110,75]];
+    potentials.forEach(([f,t,d,c,ns,rs])=>{
+      edges.push({key:[f,t].sort().join('-'),from:f,to:t,dist:d,cost:d*1.2,weight:mode==='cost'?d*1.2:d,potential:true});
+    });
+  }
+  edges.sort((a,b)=>a.weight-b.weight);
+  const parent={};NODES.forEach(n=>parent[n.id]=n.id);
+  function find(x){return parent[x]===x?x:parent[x]=find(parent[x]);}
+  function union(x,y){parent[find(x)]=find(y);}
+  const mstEdges=[],newRoads=[];
+  edges.forEach(e=>{
+    if(find(e.from)!==find(e.to)){
+      union(e.from,e.to);mstEdges.push(e);
+      if(e.potential)newRoads.push(e);
+    }
+  });
+
+  buildBase('mst-svg');
+  const pg=document.querySelector('#mst-svg-path');pg.innerHTML='';
+  // Grey out all edges first
+  const eg=document.querySelector('#mst-svg-edges');eg.innerHTML='';
+  EDGE_DATA.forEach(([f,t])=>{
+    const a=projCache[f],b=projCache[t];if(!a||!b)return;
+    eg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"rgba(255,255,255,0.03)","stroke-width":"0.8"}));
+  });
+  mstEdges.forEach(e=>{
+    const a=projCache[e.from],b=projCache[e.to];if(!a||!b)return;
+    const col=e.potential?'var(--teal)':'var(--blue)';
+    pg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col,"stroke-width":e.potential?"2.5":"2","stroke-opacity":e.potential?"1":"0.7"}));
+  });
+
+  const totalDist=mstEdges.reduce((s,e)=>s+e.dist,0);
+  const totalCost=mstEdges.reduce((s,e)=>s+e.cost,0);
+  document.getElementById('mst-dist').textContent=totalDist.toFixed(0);
+  document.getElementById('mst-cost').textContent=totalCost.toFixed(0);
+  document.getElementById('mst-maint').textContent=(mstEdges.length*2.3).toFixed(1);
+  document.getElementById('mst-new').textContent=newRoads.length;
+
+  const nrBox=document.getElementById('mst-new-roads');
+  if(newRoads.length>0){
+    nrBox.innerHTML=newRoads.map(e=>`<div class="new-road"><div style="font-weight:700;font-size:10px">${nodeMap[e.from]?.name} → ${nodeMap[e.to]?.name}</div><div style="font-size:9px;color:var(--muted)">${e.dist}km · EGP ${e.cost.toFixed(0)}M</div></div>`).join('');
+  }else nrBox.innerHTML='';
+
+  const bads=document.getElementById('mst-badges');
+  bads.innerHTML=`<div class="badge teal">MST (${mode})</div>${newRoads.length>0?`<div class="badge blue">${newRoads.length} new roads proposed</div>`:''}`;
+}
+
+// ═══ TRANSIT PANEL ═══
+function runTransit(){
+  const period=document.getElementById('tr-period').value;
+  const idx=PERIOD_IDX[period];
+  const busesCounts={morning:220,afternoon:180,evening:200,night:80};
+  const trainsCounts={morning:12,afternoon:8,evening:11,night:4};
+  const buses=busesCounts[period],trains=trainsCounts[period];
+  document.getElementById('tr-buses').textContent=buses;
+  document.getElementById('tr-trains').textContent=trains;
+
+  let totalCap=0,totalDemand=0;
+  const rows=TRANSIT_ROUTES.map(r=>{
+    const vph=r.supply[idx];
+    const cap=r.type==='metro'?vph*r.trainsCap:vph*(r.cap||70);
+    const demand=r.dailyPassengers/16;
+    totalCap+=cap;totalDemand+=demand;
+    return{...r,vph,cap,demand,coverage:Math.min(100,cap/demand*100)};
+  });
+  document.getElementById('tr-cap').textContent=(totalCap/1000).toFixed(1)+'k';
+  document.getElementById('tr-demand').textContent=(totalDemand/1000).toFixed(1)+'k';
+  const cov=Math.min(100,totalCap/totalDemand*100);
+  document.getElementById('tr-cov').textContent=cov.toFixed(0)+'%';
+  document.getElementById('tr-cov-bar').style.width=cov+'%';
+  document.getElementById('tr-cov-bar').style.background=cov>=90?'var(--green)':cov>=70?'var(--gold)':'var(--red)';
+
+  // Draw transit map
+  const svg=buildBase('tr-svg');
+  const pg=svg.querySelector('#tr-svg-path');pg.innerHTML='';
+  const eg=svg.querySelector('#tr-svg-edges');eg.innerHTML='';
+  EDGE_DATA.forEach(([f,t])=>{
+    const a=projCache[f],b=projCache[t];if(!a||!b)return;
+    eg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"rgba(255,255,255,0.04)","stroke-width":"0.8"}));
+  });
+  TRANSIT_ROUTES.forEach((r,ri)=>{
+    const col=r.type==='metro'?'var(--blue)':'var(--gold)';
+    for(let i=0;i<r.stops.length-1;i++){
+      const a=projCache[r.stops[i]],b=projCache[r.stops[i+1]];if(!a||!b)continue;
+      pg.appendChild(svgEl("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:col,"stroke-width":r.type==='metro'?"3":"1.8","stroke-opacity":"0.75"}));
+    }
+    r.stops.forEach(sid=>{
+      const g=svg.querySelector(`#tr-svg-nodes [data-id="${sid}"]`);if(!g)return;
+      const c=g.querySelector('circle');if(!c)return;
+      c.setAttribute('fill',r.type==='metro'?'var(--blue-dim)':'var(--gold-dim)');
+      c.setAttribute('stroke',col);c.setAttribute('stroke-width','1.2');
+    });
+  });
+
+  // Route list
+  const rl=document.getElementById('tr-route-list');
+  rl.innerHTML=rows.map(r=>`
+    <div class="route-card ${r.type}">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="route-name">${r.id}</div>
+        <span class="badge ${r.type==='metro'?'blue':'gold'}">${r.type.toUpperCase()}</span>
+      </div>
+      <div style="font-size:9px;color:var(--muted);margin-top:2px">${r.stops.map(s=>nodeMap[s]?.name||s).join(' → ')}</div>
+      <div class="route-bar-wrap"><div class="route-bar" style="width:${r.coverage.toFixed(0)}%;background:${r.coverage>=80?'var(--green)':r.coverage>=60?'var(--gold)':'var(--red)'};"></div></div>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);">
+        <span>${r.vph} veh/hr · ${(r.demand/1000).toFixed(1)}k demand</span>
+        <span style="color:${r.coverage>=80?'var(--green)':r.coverage>=60?'var(--gold)':'var(--red)'}">${r.coverage.toFixed(0)}%</span>
+      </div>
+    </div>`).join('');
+}
+
+// ═══ INIT ═══
+document.getElementById('sb-network').style.display='flex';
+loadNetwork();
+
+// Sidebar flex direction
+document.querySelectorAll('aside.sidebar').forEach(s=>{
+  s.style.flexDirection='column';
+});
+</script>
+</body>
+</html>
