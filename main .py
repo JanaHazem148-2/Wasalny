@@ -1,17 +1,3 @@
-"""
-main.py
-Cairo Transportation Network -- Task 1: Full System Demo
-
-Covers all three deliverables of Task 1:
-  1. Weighted graph representation  (models/)
-  2. Temporal traffic data store     (simulation/traffic_data.py)
-  3. Simulation framework            (simulation/framework.py)
-
-Run:
-    python main.py
-
-"""
-
 from models.graph            import Graph
 from models.edge             import TimePeriod, CongestionLevel
 from simulation.traffic_data import TrafficDataStore
