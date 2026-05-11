@@ -43,7 +43,7 @@ cairo_transport/
     ├── mst.py                 # Kruskal's MST with critical facility constraints (Task 2)
     ├── shortest_path.py       # Dijkstra + A* with time-dependent traffic (Task 3 and 4)
     ├── dp.py                  # Dynamic programming for scheduling and maintenance (Task 5)
-    └── greedy.py              # Greedy traffic signal optimization (Task 4)
+    └── emergency_response.py  # A* routing + Greedy signal preemption (Task 4)
 ```
 
 ---
@@ -281,7 +281,7 @@ print(f"Critical Nodes Covered  : {result['critical_covered']} / {result['total_
 | Task 1 | Graph Setup | `models/` | Complete |
 | Task 2 | Kruskal's MST | `algorithms/mst.py` | Member 1 |
 | Task 3 | Dijkstra + Time-Dependent Weights | `algorithms/shortest_path.py` | Member 2 |
-| Task 4 | A* + Greedy Signal Optimization | `algorithms/shortest_path.py` + `greedy.py` | Member 3 |
+| Task 4 | A* + Greedy Signal Optimization | `algorithms/shortest_path.py` + `emergency_response.py` | Member 3 |
 | Task 5 | Dynamic Programming | `algorithms/dp.py` | Member 4 |
 | Task 6 | Integration + Technical Report | `main.py` + all files | All members |
 
