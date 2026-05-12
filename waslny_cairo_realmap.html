@@ -1155,6 +1155,29 @@ select option{background:#141929;color:var(--txt);}
   animation: dashFlow 1.5s linear infinite;
 }
 
+/* ─── STEP ALGO CARD ─── */
+.step-card {
+  background:var(--bg2);
+  border:1px solid var(--border2);
+  border-radius:5px;
+  padding:6px 8px;
+  position:relative;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.step-card.active-step { border-color:var(--blue); box-shadow:0 0 10px rgba(77,159,255,0.2); }
+.step-card.done-step   { border-color:var(--green);box-shadow:0 0 8px rgba(61,220,151,0.15); }
+.step-card.pending-step{ border-color:var(--border);}
+.step-card .step-hdr { display:flex;align-items:center;gap:6px;margin-bottom:4px; }
+.step-num { font-size:8px;font-weight:700;letter-spacing:0.1em;color:var(--muted);background:var(--bg3);border-radius:3px;padding:1px 5px; }
+.step-lbl { font-size:8px;color:var(--muted);letter-spacing:0.08em;flex:1; }
+.step-state { font-size:8px; }
+.step-card select { background:var(--bg3);border:1px solid var(--border2);font-size:9px;padding:3px 5px;margin-top:0; }
+.step-res { font-size:8px;color:var(--dim);margin-top:4px;padding:3px 5px;background:var(--bg3);border-radius:3px;line-height:1.5;display:none; }
+.step-res.visible { display:block; }
+.step-run-btn { background:transparent;border:1px solid var(--border2);border-radius:3px;color:var(--blue);font-family:'Space Mono',monospace;font-size:8px;padding:2px 7px;cursor:pointer;letter-spacing:0.08em;transition:all 0.15s; }
+.step-run-btn:hover { background:var(--blue-dim);border-color:var(--blue); }
+.step-run-btn:disabled { opacity:0.3;cursor:not-allowed; }
+
 /* ─── MINI EGYPT SVG overlay ─── */
 .mini-egypt {position:relative;}
 
@@ -1299,7 +1322,9 @@ select option{background:#141929;color:var(--txt);}
     <select id="r-algo">
       <option value="dijkstra">Dijkstra</option>
       <option value="astar" selected>A* Search</option>
-      <option value="least">Least Congested</option>
+      <option value="greedy">Greedy</option>
+      <option value="mst">MST (Kruskal)</option>
+      <option value="bellman">Dynamic Programming</option>
     </select>
   </div>
   <div class="ctrl-group">
@@ -2586,13 +2611,38 @@ function initRoutePanel(){
   }
 }
 
+function runMSTRoute(start,end,period){
+  // Kruskal MST then BFS inside MST to find path
+  const edges=[...EDGE_DATA.map(([f,t,dist])=>({from:f,to:t,dist}))].sort((a,b)=>a.dist-b.dist);
+  const par={};NODES.forEach(n=>par[n.id]=n.id);
+  function find(x){return par[x]===x?x:par[x]=find(par[x]);}
+  const mstAdj={};NODES.forEach(n=>mstAdj[n.id]=[]);
+  let edgesConsidered=0;
+  edges.forEach(e=>{
+    edgesConsidered++;
+    if(find(e.from)!==find(e.to)){par[find(e.from)]=find(e.to);mstAdj[e.from].push(e.to);mstAdj[e.to].push(e.from);}
+  });
+  const vis=new Set(),prev={};const q=[start];vis.add(start);
+  while(q.length){const cur=q.shift();if(cur===end)break;for(const nb of mstAdj[cur]||[]){if(!vis.has(nb)){vis.add(nb);prev[nb]=cur;q.push(nb);}}}
+  const path=[];let cur=end;while(cur!==undefined){path.unshift(cur);cur=prev[cur];}
+  if(path[0]!==start)path.length=0;
+  let totalTime=0;
+  for(let i=0;i<path.length-1;i++){const ek=edgeKey(path[i],path[i+1]);if(edgeMap[ek])totalTime+=getWeight(edgeMap[ek],period);}
+  return{path,totalTime:path.length<2?-1:totalTime,nodesVisited:vis.size,edgesConsidered,steps:[]};
+}
+
 function runRoute(){
   const start=document.getElementById('r-start').value;
   const end=document.getElementById('r-end').value;
   const period=document.getElementById('r-period').value;
   const algo=document.getElementById('r-algo').value;
-  const fn=ALGO_FNS[algo]||runAstar;
-  const res=fn(start,end,period);
+  let res;
+  if(algo==='mst'){
+    res=runMSTRoute(start,end,period);
+  } else {
+    const fn=ALGO_FNS[algo]||runAstar;
+    res=fn(start,end,period);
+  }
   const mapId='route-leaflet';const svgId='route-svg';
   setupOverlay(mapId,svgId,period);
   if(res.path.length>1){
@@ -2604,7 +2654,8 @@ function runRoute(){
     const pb=document.getElementById('route-path-box');
     pb.style.display='block';
     pb.textContent=res.path.map(id=>nodeMap[id]?.name||id).join(' → ');
-    document.getElementById('route-badge').textContent=`${(ALGO_LABELS[algo]||algo)} · ${res.totalTime.toFixed(1)} MIN`;
+    const algoLabel={dijkstra:'DIJKSTRA',astar:'A* SEARCH',greedy:'GREEDY',mst:'MST',bellman:'DYNAMIC PROG.'};
+    document.getElementById('route-badge').textContent=`${(algoLabel[algo]||algo)} · ${res.totalTime.toFixed(1)} MIN`;
   }
   highlightNodeOnSvg(svgId,start,'start','#3ddc97');
   highlightNodeOnSvg(svgId,end,'end','#ff5050');
